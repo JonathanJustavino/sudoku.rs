@@ -25,7 +25,7 @@ impl Grid {
     fn check_row(&self, input: &u8, position: &(u8, u8)) -> bool {
         let row_idx: usize = usize::from(position.0);
         let row = self.matrix[row_idx];
-        return row.contains(&input);
+        return !row.contains(&input);
     }
 
     fn check_col(&self, input: u8, position: &(u8, u8)) -> bool {
@@ -34,7 +34,7 @@ impl Grid {
         for row in self.matrix {
             contained = contained || input == row[col_idx];
         }
-        contained
+        !contained
     }
 
     pub fn subgrid_start_index(&self, position: &(u8, u8)) -> (usize, usize) {
@@ -103,3 +103,6 @@ impl fmt::Display for Grid {
         write!(formatter, "{}", print)
     }
 }
+
+#[cfg(test)]
+mod game_grid_tests;
