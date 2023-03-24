@@ -22,13 +22,13 @@ impl Grid {
         }
     }
 
-    fn check_row(&self, input: &u8, position: &(u8, u8)) -> bool {
+    fn _check_row(&self, input: &u8, position: &(u8, u8)) -> bool {
         let row_idx: usize = usize::from(position.0);
         let row = self.matrix[row_idx];
         return !row.contains(&input);
     }
 
-    fn check_col(&self, input: u8, position: &(u8, u8)) -> bool {
+    fn _check_col(&self, input: u8, position: &(u8, u8)) -> bool {
         let col_idx: usize = usize::from(position.1);
         let mut contained = false;
         for row in self.matrix {
@@ -37,7 +37,7 @@ impl Grid {
         !contained
     }
 
-    pub fn subgrid_start_index(&self, position: &(u8, u8)) -> (usize, usize) {
+    pub fn _subgrid_start_index(&self, position: &(u8, u8)) -> (usize, usize) {
         let row = position.0;
         let col = position.1;
 
@@ -56,16 +56,21 @@ impl Grid {
         (usize::from(start_row), usize::from(start_col))
     }
 
-    fn check_subgrid(&self, input: &u8, position: &(u8, u8)) -> bool {
-        let (row_idx, col_idx) = self.subgrid_start_index(position);
+    fn _check_subgrid(&self, input: &u8, position: &(u8, u8)) -> bool {
+        let (row_idx, col_idx) = self._subgrid_start_index(position);
         let mut contained = false;
 
-        for index in row_idx..row_idx+3 {
-            contained = contained || input == &self.matrix[index][col_idx];
-        }
-        contained
-    }
+        for index in col_idx..col_idx+3 {
+            let first_row = self.matrix [row_idx][index];
+            let second_row = self.matrix[row_idx + 1][index];
+            let third_row = self.matrix [row_idx + 2][index];
 
+            contained = contained || *input == first_row;
+            contained = contained || *input == second_row;
+            contained = contained || *input == third_row;
+        }
+        !contained
+    }
 }
 
 impl fmt::Display for Grid {
