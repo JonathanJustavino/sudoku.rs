@@ -6,19 +6,29 @@ pub struct Grid {
 }
 
 impl Grid {
-    pub fn check_input_validity(&self, input: &u8, position: &(u8, u8)) -> bool {
-        if input > &9 {
-            println!("{}", "Invalid input");
-            return false;
-        }
-
+    pub fn check_value(&self, input: &u8, position: &(u8, u8)) -> bool {
         let row_idx = usize::from(position.0);
         let col_idx = usize::from(position.1);
+
+        match (*input, col_idx, row_idx) {
+            (0..=9, 0..=9,0..=9) => true,
+            _ => {
+                println!("{}", "Invalid input");
+                return false;
+            },
+        };
+
         let value = self.matrix[row_idx][col_idx];
-        match value {
+        let free_position = match value {
             0 => true,
             _ => false,
-        }
+        };
+
+        let valid_for_row = self._check_row(input, position);
+        let valid_for_col = self._check_row(input, position);
+        let valid_for_subgrid = self._check_subgrid(input, position);
+
+        free_position && valid_for_row && valid_for_col && valid_for_subgrid
     }
 
     fn _check_row(&self, input: &u8, position: &(u8, u8)) -> bool {

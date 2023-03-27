@@ -39,7 +39,6 @@ mod tests {
         let input: u8 = 5;
         let valid_position: (u8, u8) = (4, 5);
         let invalid_position: (u8, u8) = (1, 4);
-
         let mut value: u8 = 1;
 
         for row in 0..grid.matrix.len() {
@@ -107,5 +106,28 @@ mod tests {
             contained = contained || input == third_row;
         }
         !contained
+    }
+
+    #[test]
+    fn test_input_validation() {
+        let mut grid = Grid {
+            matrix: [[0; 9]; 9],
+        };
+        fill_subgrid((3, 3), &mut grid);
+        fill_subgrid((0, 0), &mut grid);
+        grid.matrix[4][4] = 0;
+
+        let valid_position = (4, 4);
+        let valid_input_valid_position: bool = grid.check_value(&5, &valid_position);
+        let invalid_input_valid_position: bool = grid.check_value(&25, &valid_position);
+
+        let invalid_position: (u8, u8) = (1, 1);
+        let valid_input_invalid_position: bool = grid.check_value(&5, &invalid_position);
+        let invalid_input_invalid_position: bool = grid.check_value(&20, &invalid_position);
+
+        assert!(valid_input_valid_position);
+        assert!(!valid_input_invalid_position);
+        assert!(!invalid_input_valid_position);
+        assert!(!invalid_input_invalid_position);
     }
 }
