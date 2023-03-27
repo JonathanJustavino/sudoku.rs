@@ -9,26 +9,33 @@ impl Grid {
     pub fn check_value(&self, input: &u8, position: &(u8, u8)) -> bool {
         let row_idx = usize::from(position.0);
         let col_idx = usize::from(position.1);
+        let valid = true;
 
         match (*input, col_idx, row_idx) {
             (0..=9, 0..=9,0..=9) => true,
             _ => {
                 println!("{}", "Invalid input");
-                return false;
+                return !valid;
             },
         };
 
-        let value = self.matrix[row_idx][col_idx];
-        let free_position = match value {
-            0 => true,
-            _ => false,
-        };
+        if 0 < self.matrix[row_idx][col_idx] {
+            return !valid;
+        }
 
-        let valid_for_row = self._check_row(input, position);
-        let valid_for_col = self._check_row(input, position);
-        let valid_for_subgrid = self._check_subgrid(input, position);
+        if !self._check_row(input, position) {
+            return !valid;
+        }
 
-        free_position && valid_for_row && valid_for_col && valid_for_subgrid
+        if !self._check_col(input, position) {
+            return !valid;
+        }
+
+        if !self._check_subgrid(input, position) {
+            return !valid;
+        }
+
+        valid
     }
 
     fn _check_row(&self, input: &u8, position: &(u8, u8)) -> bool {
@@ -37,11 +44,11 @@ impl Grid {
         return !row.contains(&input);
     }
 
-    fn _check_col(&self, input: u8, position: &(u8, u8)) -> bool {
+    fn _check_col(&self, input: &u8, position: &(u8, u8)) -> bool {
         let col_idx: usize = usize::from(position.1);
         let mut contained = false;
         for row in self.matrix {
-            contained = contained || input == row[col_idx];
+            contained = contained || *input == row[col_idx];
         }
         !contained
     }

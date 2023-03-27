@@ -49,8 +49,8 @@ mod tests {
 
         grid.matrix[4][5] = 0;
 
-        let should_fail = grid._check_col(input, &invalid_position);
-        let should_work = grid._check_col(input, &valid_position);
+        let should_fail = grid._check_col(&input, &invalid_position);
+        let should_work = grid._check_col(&input, &valid_position);
 
         assert_eq!(should_work, true);
         assert_eq!(should_fail, false);
