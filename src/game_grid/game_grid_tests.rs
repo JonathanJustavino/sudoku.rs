@@ -10,7 +10,9 @@ mod tests {
 
     #[test]
     fn test_check_row() {
-        let mut grid = Grid {matrix: [[0; 9]; 9]};
+        let mut grid = Grid {
+            matrix: [[0; 9]; 9],
+        };
         let input: u8 = 5;
         let valid_position: (u8, u8) = (0, 4);
         let invalid_position: (u8, u8) = (1, 4);
@@ -31,7 +33,9 @@ mod tests {
 
     #[test]
     fn test_check_col() {
-        let mut grid = Grid {matrix: [[0; 9]; 9]};
+        let mut grid = Grid {
+            matrix: [[0; 9]; 9],
+        };
         let input: u8 = 5;
         let valid_position: (u8, u8) = (4, 5);
         let invalid_position: (u8, u8) = (1, 4);
@@ -57,62 +61,51 @@ mod tests {
         let col_offset: u8 = 3;
         for row_index in 0..=2 {
             let col_idx = start.1 + row_index;
-            grid.matrix[start.0][col_idx]     = (row_index + 1) as u8;
+            grid.matrix[start.0][col_idx] = (row_index + 1) as u8;
             grid.matrix[start.0 + 1][col_idx] = (row_index + 1) as u8 + col_offset;
             grid.matrix[start.0 + 2][col_idx] = (row_index + 1) as u8 + col_offset * 2;
         }
     }
 
-   #[test]
-   fn test_check_subgrid() {
+    #[test]
+    fn test_check_subgrid() {
         let input: u8 = 5;
-        let mut grid = Grid {matrix: [[0; 9]; 9]};
+        let mut grid = Grid {
+            matrix: [[0; 9]; 9],
+        };
         let first_subgrid: (usize, usize) = (0, 0);
         let fifth_subgrid: (usize, usize) = (3, 3);
         fill_subgrid(first_subgrid, &mut grid);
         fill_subgrid(fifth_subgrid, &mut grid);
         grid.matrix[4][4] = 0;
 
-        let valid_position: (u8, u8) = (4, 4);
         let invalid_position: (u8, u8) = (1, 1);
-        let should_fail = {
-            let ref this = grid;
-            let input = &input;
-            let position = &invalid_position;
-            let (row_idx, col_idx) = this._subgrid_start_index(position);
-            let mut contained = false;
+        let (row_idx, col_idx) = grid._get_subgrid_start_index(&invalid_position);
+        let should_fail = find_in_subgrid(&grid, row_idx, col_idx, input);
 
-            for index in col_idx..col_idx+3 {
-                let first_row = this.matrix [row_idx][index];
-                let second_row = this.matrix[row_idx + 1][index];
-                let third_row = this.matrix [row_idx + 2][index];
-
-                contained = contained || *input == first_row;
-                contained = contained || *input == second_row;
-                contained = contained || *input == third_row;
-            }
-            !contained
-        };
-        let should_work = {
-            let ref this = grid;
-            let input = &input;
-            let position = &valid_position;
-            let (row_idx, col_idx) = this._subgrid_start_index(position);
-            let mut contained = false;
-
-            for index in col_idx..col_idx+3 {
-                let first_row = this.matrix [row_idx][index];
-                let second_row = this.matrix[row_idx + 1][index];
-                let third_row = this.matrix [row_idx + 2][index];
-
-                contained = contained || *input == first_row;
-                contained = contained || *input == second_row;
-                contained = contained || *input == third_row;
-            }
-            !contained
-        };
+        let valid_position: (u8, u8) = (4, 4);
+        let (row_idx, col_idx) = grid._get_subgrid_start_index(&valid_position);
+        let should_work = find_in_subgrid(&grid, row_idx, col_idx, input);
 
         assert_eq!(should_work, true);
         assert_eq!(should_fail, false);
-   }
+    }
+
+    fn find_in_subgrid(grid: &Grid, row_idx: usize, col_idx: usize, input: u8) -> bool {
+        let mut contained = false;
+        let mut first_row: u8;
+        let mut second_row: u8;
+        let mut third_row: u8;
+
+        for index in col_idx..col_idx + 3 {
+            first_row = grid.matrix[row_idx][index];
+            second_row = grid.matrix[row_idx + 1][index];
+            third_row = grid.matrix[row_idx + 2][index];
+
+            contained = contained || input == first_row;
+            contained = contained || input == second_row;
+            contained = contained || input == third_row;
+        }
+        !contained
+    }
 }

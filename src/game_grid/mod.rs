@@ -1,8 +1,8 @@
-use std::{fmt};
+use std::fmt;
 
 #[derive(Debug)]
 pub struct Grid {
-    pub matrix: [[u8; 9]; 9]
+    pub matrix: [[u8; 9]; 9],
 }
 
 impl Grid {
@@ -14,7 +14,6 @@ impl Grid {
 
         let row_idx = usize::from(position.0);
         let col_idx = usize::from(position.1);
-
         let value = self.matrix[row_idx][col_idx];
         match value {
             0 => true,
@@ -37,7 +36,7 @@ impl Grid {
         !contained
     }
 
-    pub fn _subgrid_start_index(&self, position: &(u8, u8)) -> (usize, usize) {
+    pub fn _get_subgrid_start_index(&self, position: &(u8, u8)) -> (usize, usize) {
         let row = position.0;
         let col = position.1;
 
@@ -57,13 +56,13 @@ impl Grid {
     }
 
     fn _check_subgrid(&self, input: &u8, position: &(u8, u8)) -> bool {
-        let (row_idx, col_idx) = self._subgrid_start_index(position);
+        let (row_idx, col_idx) = self._get_subgrid_start_index(position);
         let mut contained = false;
 
-        for index in col_idx..col_idx+3 {
-            let first_row = self.matrix [row_idx][index];
+        for index in col_idx..col_idx + 3 {
+            let first_row = self.matrix[row_idx][index];
             let second_row = self.matrix[row_idx + 1][index];
-            let third_row = self.matrix [row_idx + 2][index];
+            let third_row = self.matrix[row_idx + 2][index];
 
             contained = contained || *input == first_row;
             contained = contained || *input == second_row;
@@ -80,7 +79,6 @@ impl fmt::Display for Grid {
         let mut output = String::from("").to_owned();
 
         for (row_index, row) in self.matrix.iter().enumerate() {
-
             if row_index % 3 == 0 {
                 output.push_str(&row_separator);
             }
