@@ -14,8 +14,8 @@ mod tests {
             matrix: [[0; 9]; 9],
         };
         let input: u8 = 5;
-        let valid_position: (u8, u8) = (0, 4);
-        let invalid_position: (u8, u8) = (1, 4);
+        let valid_position: (&u8, &u8) = (&0, &4);
+        let invalid_position: (&u8, &u8) = (&1, &4);
 
         let valid_row: [u8; 9] = [1, 2, 3, 4, 0, 6, 7, 8, 9];
         let invalid_row: [u8; 9] = [1, 2, 3, 4, 5, 6, 7, 8, 9];
@@ -24,8 +24,8 @@ mod tests {
         grid.matrix[1] = invalid_row;
         grid.matrix[3][3] = 7;
 
-        let should_work = grid._check_row(&input, &valid_position);
-        let should_fail = grid._check_row(&input, &invalid_position);
+        let should_work = grid._check_row(&input, valid_position);
+        let should_fail = grid._check_row(&input, invalid_position);
 
         assert_eq!(should_work, true);
         assert_eq!(should_fail, false);
@@ -37,8 +37,8 @@ mod tests {
             matrix: [[0; 9]; 9],
         };
         let input: u8 = 5;
-        let valid_position: (u8, u8) = (4, 5);
-        let invalid_position: (u8, u8) = (1, 4);
+        let valid_position: (&u8, &u8) = (&4, &5);
+        let invalid_position: (&u8, &u8) = (&1, &4);
         let mut value: u8 = 1;
 
         for row in 0..grid.matrix.len() {
@@ -49,8 +49,8 @@ mod tests {
 
         grid.matrix[4][5] = 0;
 
-        let should_fail = grid._check_col(&input, &invalid_position);
-        let should_work = grid._check_col(&input, &valid_position);
+        let should_fail = grid._check_col(&input, invalid_position);
+        let should_work = grid._check_col(&input, valid_position);
 
         assert_eq!(should_work, true);
         assert_eq!(should_fail, false);
@@ -78,12 +78,12 @@ mod tests {
         fill_subgrid(fifth_subgrid, &mut grid);
         grid.matrix[4][4] = 0;
 
-        let invalid_position: (u8, u8) = (1, 1);
-        let (row_idx, col_idx) = grid._get_subgrid_start_index(&invalid_position);
+        let invalid_position: (&u8, &u8) = (&1, &1);
+        let (row_idx, col_idx) = grid._get_subgrid_start_index(invalid_position);
         let should_fail = find_in_subgrid(&grid, row_idx, col_idx, input);
 
-        let valid_position: (u8, u8) = (4, 4);
-        let (row_idx, col_idx) = grid._get_subgrid_start_index(&valid_position);
+        let valid_position: (&u8, &u8) = (&4, &4);
+        let (row_idx, col_idx) = grid._get_subgrid_start_index(valid_position);
         let should_work = find_in_subgrid(&grid, row_idx, col_idx, input);
 
         assert_eq!(should_work, true);
@@ -117,13 +117,13 @@ mod tests {
         fill_subgrid((0, 0), &mut grid);
         grid.matrix[4][4] = 0;
 
-        let valid_position = (4, 4);
-        let valid_input_valid_position: bool = grid.check_value(&5, &valid_position);
-        let invalid_input_valid_position: bool = grid.check_value(&25, &valid_position);
+        let valid_position: (&u8, &u8) = (&4, &4);
+        let valid_input_valid_position: bool = grid.check_value(&5, valid_position);
+        let invalid_input_valid_position: bool = grid.check_value(&25, valid_position);
 
-        let invalid_position: (u8, u8) = (1, 1);
-        let valid_input_invalid_position: bool = grid.check_value(&5, &invalid_position);
-        let invalid_input_invalid_position: bool = grid.check_value(&20, &invalid_position);
+        let invalid_position: (&u8, &u8) = (&1, &1);
+        let valid_input_invalid_position: bool = grid.check_value(&5, invalid_position);
+        let invalid_input_invalid_position: bool = grid.check_value(&20, invalid_position);
 
         assert!(valid_input_valid_position);
         assert!(!valid_input_invalid_position);

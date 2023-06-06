@@ -6,9 +6,9 @@ pub struct Grid {
 }
 
 impl Grid {
-    pub fn check_value(&self, input: &u8, position: &(u8, u8)) -> bool {
-        let row_idx = usize::from(position.0);
-        let col_idx = usize::from(position.1);
+    pub fn check_value(&self, input: &u8, position: (&u8, &u8)) -> bool {
+        let row_idx = usize::from(*position.0);
+        let col_idx = usize::from(*position.1);
         let valid = true;
 
         match (*input, col_idx, row_idx) {
@@ -38,14 +38,14 @@ impl Grid {
         valid
     }
 
-    fn _check_row(&self, input: &u8, position: &(u8, u8)) -> bool {
-        let row_idx: usize = usize::from(position.0);
+    fn _check_row(&self, input: &u8, position: (&u8, &u8)) -> bool {
+        let row_idx: usize = usize::from(*position.0);
         let row = self.matrix[row_idx];
         return !row.contains(&input);
     }
 
-    fn _check_col(&self, input: &u8, position: &(u8, u8)) -> bool {
-        let col_idx: usize = usize::from(position.1);
+    fn _check_col(&self, input: &u8, position: (&u8, &u8)) -> bool {
+        let col_idx: usize = usize::from(*position.1);
         let mut contained = false;
         for row in self.matrix {
             contained = contained || *input == row[col_idx];
@@ -53,7 +53,7 @@ impl Grid {
         !contained
     }
 
-    pub fn _get_subgrid_start_index(&self, position: &(u8, u8)) -> (usize, usize) {
+    pub fn _get_subgrid_start_index(&self, position: (&u8, &u8)) -> (usize, usize) {
         let row = position.0;
         let col = position.1;
 
@@ -72,7 +72,7 @@ impl Grid {
         (usize::from(start_row), usize::from(start_col))
     }
 
-    fn _check_subgrid(&self, input: &u8, position: &(u8, u8)) -> bool {
+    fn _check_subgrid(&self, input: &u8, position: (&u8, &u8)) -> bool {
         let (row_idx, col_idx) = self._get_subgrid_start_index(position);
         let mut contained = false;
 
