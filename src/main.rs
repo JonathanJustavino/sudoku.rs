@@ -9,5 +9,5 @@ fn main() {
     let solver: Solver = Solver::new(grid);
 
     println!("{}", solver.grid);
-    println!("{}", solver);
+    println!("{:?}", solver);
 }
