@@ -1,5 +1,6 @@
 mod game_grid;
 mod solver;
+mod annealing;
 
 use crate::game_grid::Grid;
 use crate::solver::Solver;
