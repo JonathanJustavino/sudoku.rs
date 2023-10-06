@@ -1,5 +1,5 @@
 use std::vec;
-use rand::Rng;
+use rand::{Rng, seq::SliceRandom};
 
 #[cfg(test)]
 mod annealing_tests;
@@ -23,6 +23,27 @@ pub fn swap(solution: &mut Vec<u8>) -> (usize, usize) {
     solution[second] = first_value;
 
     (first, second)
+}
+
+pub fn swap_index_with_value(mut solution: Vec<u8>) -> Vec<u8> {
+    let chunk_size = 2;
+    let mut rng = rand::thread_rng();
+    let amount = rng.gen_range(2..9);
+    let mut sampled = rand::seq::index::sample(&mut rng, 9, amount).into_vec();
+    let sampled_length = sampled.len();
+
+    println!("sampled {:?}", sampled);
+
+    if sampled_length % 2 != 0 {
+        let first = sampled[0];
+        sampled.push(first);
+    }
+
+    for pair in sampled.chunks(chunk_size) {
+        solution.swap(pair[0], pair[1]);
+    }
+
+    solution
 }
 
 pub fn generate_neighbourhood(solution: Vec<u8>, amount: u8) -> Vec<Vec<u8>> {
