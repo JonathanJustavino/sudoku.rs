@@ -1,9 +1,6 @@
-use std::collections::HashSet;
-use std::hash::Hash;
-
 #[cfg(test)]
 mod tests {
-    use crate::annealing::{generate_solution, annealing_tests::has_unique_elements, generate_neighbourhood, swap};
+    use crate::annealing::{generate_solution, utils::has_unique_elements, generate_neighbourhood, swap};
 
     #[test]
     fn it_works() {
@@ -39,13 +36,9 @@ mod tests {
 
         assert!(true);
     }
-}
 
-fn has_unique_elements<T>(iter: T) -> bool
-where
-    T: IntoIterator,
-    T::Item: Eq + Hash,
-{
-    let mut uniq = HashSet::new();
-    iter.into_iter().all(move |x| uniq.insert(x))
+    #[test]
+    fn test_amount_of_conflicts() {
+
+    }
 }
