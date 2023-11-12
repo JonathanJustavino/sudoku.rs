@@ -1,6 +1,17 @@
 #[cfg(test)]
 mod tests {
-    use crate::annealing::{generate_solution, utils::has_unique_elements, generate_neighbourhood, swap};
+    use std::vec;
+
+    use crate::annealing::{gather_value_pool, generate_solution_fixed};
+    use crate::annealing::{utils::has_unique_elements, 
+        conflicts_per_row, 
+        amount_of_conflicts, 
+        gather_fixed_indices, 
+        gather_free_indices
+    };
+
+    use crate::game_grid::Grid;
+
 
     #[test]
     fn it_works() {
@@ -8,37 +19,91 @@ mod tests {
         assert_eq!(result, 2);
     }
 
-    #[test]
-    fn test_generate_solution() {
-        let solution = generate_solution();
-        assert_eq!(solution.len(), 9);
-        assert!(has_unique_elements(solution));
+    fn setup_grid() -> Grid {
+        let matrix:[[u8; 9]; 9] = [
+            [0, 0, 1, 0, 4, 0, 7, 0, 9],
+            [0, 0, 1, 0, 4, 0, 7, 0, 9],
+            [0, 0, 1, 0, 4, 0, 7, 0, 9],
+            [0, 0, 1, 0, 4, 0, 7, 0, 9],
+            [0, 0, 1, 0, 4, 0, 7, 0, 9],
+            [0, 0, 1, 0, 4, 0, 7, 0, 9],
+            [0, 0, 1, 0, 4, 0, 7, 0, 9],
+            [0, 0, 1, 0, 4, 0, 7, 0, 9],
+            [0, 0, 1, 0, 4, 0, 7, 0, 9],
+        ];
+
+        let grid = Grid{matrix};
+
+        grid
     }
 
-    #[test]
-    fn test_swap() {
-        let mut solution = generate_solution();
-        let check = solution.to_vec();
-        let (first, second) = swap(&mut solution);
-
-        assert_eq!(solution[first], check[second]);
-        assert_eq!(solution[second], check[first]);
-    }
-
-    #[test]
-    fn test_generate_neighbourhood() {
-        let solution = generate_solution();
-        let amount = 9;
-        let neighbours = generate_neighbourhood(solution, amount);
-        assert_eq!(neighbours.len(), amount as usize);
-
-        println!("{:?}", neighbours);
-
-        assert!(true);
+    fn setup_solution() -> Vec<u8> {
+        vec![0, 0, 1, 0, 4, 0, 7, 0, 9]
     }
 
     #[test]
     fn test_amount_of_conflicts() {
+        let grid = setup_grid();
+        let solution = grid.matrix[0].to_vec();
+        let conflicts = amount_of_conflicts(&solution, 0 as usize, &grid);
 
+        assert_eq!(conflicts, 72);
+    } 
+
+    #[test]
+    fn test_conflicts_per_row() {
+        let grid = setup_grid();
+        let conflicts = conflicts_per_row(&grid.matrix[0].to_vec(), &grid.matrix[0].to_vec());
+
+        assert_eq!(conflicts, 9);
+    }
+
+    #[test]
+    fn test_gather_fixed_indices() {
+        let sln = setup_solution();
+        let fixed_indices = vec![2, 4, 6, 8];
+        let fixed = gather_fixed_indices(&sln);
+
+        assert_eq!(fixed, fixed_indices);
+    }
+
+
+    #[test]
+    fn test_gather_free_indices() {
+        let sln = setup_solution();
+        let free_indices = vec![0, 1, 3, 5, 7];
+        let free = gather_free_indices(&sln);
+
+        assert_eq!(free, free_indices);
+    }
+
+
+    #[test]
+    fn test_gather_value_pool() {
+        let mut sln = setup_solution();
+        let pool = gather_value_pool(&mut sln);
+        let available_values = vec![2, 3, 5, 6, 8];
+
+        assert_eq!(available_values, pool);
+    }
+
+    #[test]
+    fn test_generate_solution_fixed(){
+        let sln = setup_solution();
+        let mut generated_solution: Vec<u8> = sln.to_vec();
+        let fixed_from_sln = gather_fixed_indices(&sln);
+        let mut equal = true;
+        generate_solution_fixed(&mut generated_solution);
+
+        for index in fixed_from_sln.iter() {
+            let gen_value = generated_solution[*index];
+            let sln_value = sln[*index];
+            equal = gen_value == sln_value;
+        }
+
+        assert!(equal);
     }
 }
+
+
+

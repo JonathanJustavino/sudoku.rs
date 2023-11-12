@@ -44,7 +44,7 @@ fn main() {
     println!("{}", cache);
     println!("{:?}", row);
 
-    let collisions = annealing::amount_of_conflicts(row, 0 as usize, &grid);
+    let collisions = annealing::amount_of_conflicts(&row, 0 as usize, &grid);
 
     println!("conflicting values: {}", collisions);
 

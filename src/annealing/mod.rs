@@ -47,7 +47,7 @@ impl fmt::Display for Cache {
 }
 
 
-pub fn amount_of_conflicts(solution: Vec<u8>, row_index: usize, grid: &Grid) -> usize {
+pub fn amount_of_conflicts(solution: &Vec<u8>, row_index: usize, grid: &Grid) -> usize {
     let mut conflicts: usize = 0;
 
     let mut free_values: Vec<u8> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9];
@@ -65,6 +65,16 @@ pub fn amount_of_conflicts(solution: Vec<u8>, row_index: usize, grid: &Grid) -> 
 
     conflicts
 }
+
+
+pub fn conflicts_per_row(solution: &Vec<u8>, neighbor: &Vec<u8>) -> usize {
+    let mut conflicts: usize = 0;
+    let collisions = neighbor.into_iter().filter(|item| solution.contains(item)).count();
+    conflicts += collisions;
+
+    conflicts
+}
+
 
 pub fn initial_assignment(row: &Vec<u8>) {
     println!("initial assignment");
