@@ -39,10 +39,14 @@ fn main() {
     // annealing::gather_free_indices(&row);
 
     annealing::generate_solution_fixed(&mut row);
-    let cache = annealing::Cache::new(grid);
+    let cache = annealing::Cache::new(&grid);
 
     println!("{}", cache);
     println!("{:?}", row);
+
+    let collisions = annealing::amount_of_conflicts(row, 0 as usize, &grid);
+
+    println!("conflicting values: {}", collisions);
 
     // let sln = annealing::generate_solution();
 

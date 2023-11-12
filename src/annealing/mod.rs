@@ -7,13 +7,12 @@ use crate::game_grid::Grid;
 
 pub struct Cache {
     pub fixed_positions: Vec<Vec<usize>>,
-    // _init_cache: (),
 }
 
 
 impl Cache {
 
-    pub fn new(grid: Grid) -> Self {
+    pub fn new(grid: &Grid) -> Self {
         println!("{}", grid);
         let mut fixed_positions: Vec<Vec<usize>> = vec![vec![]; 9];
         for (index, row) in grid.matrix.iter().enumerate() {
@@ -48,32 +47,24 @@ impl fmt::Display for Cache {
 }
 
 
-pub fn amount_of_conflicts(grid: Grid, solution: Vec<u8>) -> u8 {
-    let sln = solution.as_slice();
-    let mut conflicts: u8 = 0;
+pub fn amount_of_conflicts(solution: Vec<u8>, row_index: usize, grid: &Grid) -> usize {
+    let mut conflicts: usize = 0;
 
-    for row in grid.matrix {
-        println!("{:?}", row);
-        let length = row.len();
-        for index in 0..length {
-            if row[index] == sln[index] {
-                conflicts += 1;
-            }
+    let mut free_values: Vec<u8> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9];
+
+    for (index, row) in grid.matrix.iter().enumerate() {
+        if index == row_index {
+            continue;
         }
+
+        let fixed_values = BTreeSet::from_iter(row);
+        free_values.retain(|value| !fixed_values.contains(value));
+        let collisions = row.into_iter().filter(|item| solution.contains(item)).count();
+        conflicts += collisions;
     }
 
     conflicts
 }
-
-pub fn generate_solution() -> Vec<u8> {
-    let mut rng = rand::thread_rng();
-    let mut sampled = rand::seq::index::sample(&mut rng, 9, 9).into_vec();
-    sampled.iter_mut().for_each(|x| *x += 1);
-    let result = sampled.iter().map(|&e| e as u8).collect();
-
-    result
-}
-
 
 pub fn initial_assignment(row: &Vec<u8>) {
     println!("initial assignment");
@@ -123,6 +114,16 @@ pub fn generate_solution_fixed(row: &mut Vec<u8>){
         row[*position] = *value;
     }
 }
+
+
+// pub fn generate_solution() -> Vec<u8> {
+//     let mut rng = rand::thread_rng();
+//     let mut sampled = rand::seq::index::sample(&mut rng, 9, 9).into_vec();
+//     sampled.iter_mut().for_each(|x| *x += 1);
+//     let result = sampled.iter().map(|&e| e as u8).collect();
+
+//     result
+// }
 
 
 pub fn swap(solution: &mut Vec<u8>) -> (usize, usize) {
