@@ -93,13 +93,18 @@ pub fn gather_fixed_indices(row: &Vec<u8>) -> Vec<usize> {
 }
 
 
-pub fn gather_free_indices(row: &Vec<u8>) -> Vec<usize> {
-    let available_indices: Vec<usize> = row.iter()
-                                        .enumerate()
-                                        .filter(|(_, &value)| value == 0)
-                                        .map(|(i, _)| i)
+pub fn gather_free_indices(row_index: usize, cache: &Cache) -> Vec<usize> {
+    let mut free_positions: Vec<usize> = vec![0, 1, 2, 3, 4, 5, 6, 7, 8];
+    let mut fixed_positions = cache.fixed_positions[row_index].clone();
+
+    fixed_positions.copy_from_slice(cache.fixed_positions[row_index].as_slice());
+    let fixed_positions = BTreeSet::from_iter(fixed_positions);
+    free_positions.retain(|value| !fixed_positions.contains(value));
+    let free_values = free_positions.iter()
+                                        .map(|value| *value as usize)
                                         .collect();
-    available_indices
+
+    free_values
 }
 
 
@@ -112,8 +117,22 @@ pub fn gather_value_pool(row: &Vec<u8>) -> Vec<u8> {
 }
  
 
-pub fn generate_solution_fixed(row: &mut Vec<u8>){
-    let free_positions = gather_free_indices(&row);
+pub fn generate_initial_solution_fixed(row: &mut Vec<u8>, row_index: usize, cache: &Cache){
+    let free_positions = gather_free_indices(row_index, cache);
+    let mut pool = gather_value_pool(&row);
+    let mut rng = rand::thread_rng();
+
+    pool.shuffle(&mut rng);
+
+    for iterator in pool.iter().zip(free_positions.iter()) {
+        let (value, position) = iterator;
+        row[*position] = *value;
+    }
+}
+
+
+pub fn generate_solution_fixed(row: &mut Vec<u8>, row_index: usize, cache: &Cache){
+    let free_positions = gather_free_indices(row_index, cache);
     let mut pool = gather_value_pool(&row);
     let mut rng = rand::thread_rng();
 

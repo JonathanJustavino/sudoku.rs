@@ -28,6 +28,9 @@ fn main() {
 
     let grid = Grid{matrix};
 
+    let cache = annealing::Cache::new(&grid);
+
+    println!("{}", cache);
     // let solver: Solver = Solver::new(grid);
 
     // println!("{}", solver.grid);
@@ -35,14 +38,13 @@ fn main() {
 
     let mut row: Vec<u8> = vec![0, 0, 1, 0, 4, 0, 7, 0, 9];
     println!("{:?}", row);
+    let row_index: usize = 1;
+    let free = annealing::gather_free_indices(row_index, &cache);
+    println!("{:?}", free);
     // annealing::gather_fixed(&row);
     // annealing::gather_free_indices(&row);
 
-    annealing::generate_solution_fixed(&mut row);
-    let cache = annealing::Cache::new(&grid);
-
-    println!("{}", cache);
-    println!("{:?}", row);
+    annealing::generate_initial_solution_fixed(&mut row, 4 as usize, &cache);
 
     let collisions = annealing::amount_of_conflicts(&row, 0 as usize, &grid);
 

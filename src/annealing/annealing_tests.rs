@@ -2,7 +2,7 @@
 mod tests {
     use std::vec;
 
-    use crate::annealing::{gather_value_pool, generate_solution_fixed};
+    use crate::annealing::{gather_value_pool, generate_initial_solution_fixed};
     use crate::annealing::{utils::has_unique_elements, 
         conflicts_per_row, 
         amount_of_conflicts, 
@@ -10,6 +10,7 @@ mod tests {
         gather_free_indices
     };
 
+    use crate::annealing::Cache;
     use crate::game_grid::Grid;
 
 
@@ -35,6 +36,13 @@ mod tests {
         let grid = Grid{matrix};
 
         grid
+    }
+
+    fn setup_cache() -> (Cache, Grid) {
+        let grid = setup_grid();
+        let cache = Cache::new(&grid);
+
+        (cache, grid)
     }
 
     fn setup_solution() -> Vec<u8> {
@@ -70,9 +78,11 @@ mod tests {
 
     #[test]
     fn test_gather_free_indices() {
-        let sln = setup_solution();
+        let row_index: usize = 1;
+        // let sln = setup_solution();
+        let (cache, _) = setup_cache();
         let free_indices = vec![0, 1, 3, 5, 7];
-        let free = gather_free_indices(&sln);
+        let free = gather_free_indices(row_index, &cache);
 
         assert_eq!(free, free_indices);
     }
@@ -88,12 +98,15 @@ mod tests {
     }
 
     #[test]
-    fn test_generate_solution_fixed(){
+    fn test_generate_initial_solution_fixed(){
+        let row_index: usize = 1;
         let sln = setup_solution();
+        let (cache, _) = setup_cache();
         let mut generated_solution: Vec<u8> = sln.to_vec();
         let fixed_from_sln = gather_fixed_indices(&sln);
         let mut equal = true;
-        generate_solution_fixed(&mut generated_solution);
+
+        generate_initial_solution_fixed(&mut generated_solution, row_index, &cache);
 
         for index in fixed_from_sln.iter() {
             let gen_value = generated_solution[*index];
