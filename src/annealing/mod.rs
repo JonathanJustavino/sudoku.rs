@@ -1,4 +1,5 @@
 use core::fmt;
+use std::collections::HashMap;
 use std::{vec, collections::BTreeSet, iter::FromIterator,};
 use rand::{Rng, seq::SliceRandom};
 
@@ -11,7 +12,6 @@ pub struct Cache {
 
 
 impl Cache {
-
     pub fn new(grid: &Grid) -> Self {
         println!("{}", grid);
         let mut fixed_positions: Vec<Vec<usize>> = vec![vec![]; 9];
@@ -47,39 +47,44 @@ impl fmt::Display for Cache {
 }
 
 
-pub fn amount_of_conflicts(solution: &Vec<u8>, row_index: usize, grid: &Grid) -> usize {
+pub fn fitness_score(solution: &Vec<u8>, neighbor: &Vec<u8>) -> usize {
     let mut conflicts: usize = 0;
-
-    let mut free_values: Vec<u8> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9];
-
-    for (index, row) in grid.matrix.iter().enumerate() {
-        if index == row_index {
-            continue;
-        }
-
-        let fixed_values = BTreeSet::from_iter(row);
-        free_values.retain(|value| !fixed_values.contains(value));
-        let collisions = row.into_iter().filter(|item| solution.contains(item)).count();
-        conflicts += collisions;
-    }
-
-    conflicts
-}
-
-
-pub fn conflicts_per_row(solution: &Vec<u8>, neighbor: &Vec<u8>) -> usize {
-    let mut conflicts: usize = 0;
-    let collisions = neighbor.into_iter().filter(|item| solution.contains(item)).count();
+    let collisions = neighbor.iter()
+                                    .enumerate()
+                                    .filter(|(index, item)| **item == solution[*index] && **item > 0).count();
     conflicts += collisions;
 
     conflicts
 }
 
 
-pub fn initial_assignment(row: &Vec<u8>) {
-    println!("initial assignment");
-    let mut fixed = gather_fixed_indices(row);
+pub fn fitness<'a>(solution: &Vec<u8>, neighborhood: &'a Vec<Vec<u8>>, ) -> Vec<(usize, &'a Vec<u8>)>{
+    let mut ranking: Vec<(usize, &Vec<u8>)> = vec![];
 
+    for neighbor in neighborhood.iter() {
+        let score = fitness_score(&solution, &neighbor);
+        let item = (score, neighbor);
+        ranking.push(item);
+    }
+
+    ranking
+}
+
+
+pub fn initial_assignment(grid: &mut Grid, cache: &Cache) {
+    let mut matrix = grid.matrix;
+    let length: usize = 9;
+
+    for (index, row) in matrix.iter_mut().enumerate() {
+        let mut current_row = row.to_vec();
+        generate_solution_fixed(&mut current_row, index, cache);
+
+        for index in 0..length {
+            row[index] = current_row[index];
+        }
+    }
+
+    grid.matrix = matrix;
 }
 
 
@@ -117,20 +122,6 @@ pub fn gather_value_pool(row: &Vec<u8>) -> Vec<u8> {
 }
  
 
-pub fn generate_initial_solution_fixed(row: &mut Vec<u8>, row_index: usize, cache: &Cache){
-    let free_positions = gather_free_indices(row_index, cache);
-    let mut pool = gather_value_pool(&row);
-    let mut rng = rand::thread_rng();
-
-    pool.shuffle(&mut rng);
-
-    for iterator in pool.iter().zip(free_positions.iter()) {
-        let (value, position) = iterator;
-        row[*position] = *value;
-    }
-}
-
-
 pub fn generate_solution_fixed(row: &mut Vec<u8>, row_index: usize, cache: &Cache){
     let free_positions = gather_free_indices(row_index, cache);
     let mut pool = gather_value_pool(&row);
@@ -145,15 +136,6 @@ pub fn generate_solution_fixed(row: &mut Vec<u8>, row_index: usize, cache: &Cach
 }
 
 
-// pub fn generate_solution() -> Vec<u8> {
-//     let mut rng = rand::thread_rng();
-//     let mut sampled = rand::seq::index::sample(&mut rng, 9, 9).into_vec();
-//     sampled.iter_mut().for_each(|x| *x += 1);
-//     let result = sampled.iter().map(|&e| e as u8).collect();
-
-//     result
-// }
-
 
 pub fn swap(solution: &mut Vec<u8>) -> (usize, usize) {
     let mut rng = rand::thread_rng();
@@ -166,6 +148,7 @@ pub fn swap(solution: &mut Vec<u8>) -> (usize, usize) {
 
     (first, second)
 }
+
 
 pub fn swap_index_with_value(mut solution: Vec<u8>) -> Vec<u8> {
     let chunk_size = 2;
@@ -188,12 +171,13 @@ pub fn swap_index_with_value(mut solution: Vec<u8>) -> Vec<u8> {
     solution
 }
 
-pub fn generate_neighbourhood(solution: Vec<u8>, amount: u8) -> Vec<Vec<u8>> {
+
+pub fn generate_neighbourhood(solution: Vec<u8>, row_index: usize, amount: u8, cache: &Cache) -> Vec<Vec<u8>> {
     let mut neighbourhood: Vec<Vec<u8>> = vec![];
 
     for _ in 0..amount {
         let mut neighbour = solution.to_vec();
-        swap(&mut neighbour);
+        generate_solution_fixed(&mut neighbour, row_index, &cache);
         let mut x = vec![neighbour];
 
         neighbourhood.append(&mut x);
@@ -202,6 +186,5 @@ pub fn generate_neighbourhood(solution: Vec<u8>, amount: u8) -> Vec<Vec<u8>> {
     neighbourhood
 }
 
-use crate::utils;
 #[cfg(test)]
 mod annealing_tests;

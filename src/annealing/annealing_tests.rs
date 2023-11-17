@@ -2,12 +2,12 @@
 mod tests {
     use std::vec;
 
-    use crate::annealing::{gather_value_pool, generate_initial_solution_fixed};
-    use crate::annealing::{utils::has_unique_elements, 
-        conflicts_per_row, 
-        amount_of_conflicts, 
+    use crate::annealing::{gather_value_pool, generate_solution_fixed, self};
+    use crate::annealing::{ 
         gather_fixed_indices, 
-        gather_free_indices
+        gather_free_indices,
+        fitness_score,
+        fitness,
     };
 
     use crate::annealing::Cache;
@@ -20,7 +20,7 @@ mod tests {
         assert_eq!(result, 2);
     }
 
-    fn setup_grid() -> Grid {
+    fn setup_empty_grid() -> Grid {
         let matrix:[[u8; 9]; 9] = [
             [0, 0, 1, 0, 4, 0, 7, 0, 9],
             [0, 0, 1, 0, 4, 0, 7, 0, 9],
@@ -38,37 +38,74 @@ mod tests {
         grid
     }
 
+    fn setup_grid() -> Grid {
+        let matrix:[[u8; 9]; 9] = [
+            [1, 2, 3, 4, 5, 6, 7, 8, 9],
+            [1, 2, 3, 4, 5, 6, 7, 8, 9],
+            [1, 2, 3, 4, 5, 6, 7, 8, 9],
+            [1, 2, 3, 4, 5, 6, 7, 8, 9],
+            [1, 2, 3, 4, 5, 6, 7, 8, 9],
+            [1, 2, 3, 4, 5, 6, 7, 8, 9],
+            [1, 2, 3, 4, 5, 6, 7, 8, 9],
+            [1, 2, 3, 4, 5, 6, 7, 8, 9],
+            [1, 2, 3, 4, 5, 6, 7, 8, 9],
+        ];
+
+        let grid = Grid{matrix};
+
+        grid
+    }
+
     fn setup_cache() -> (Cache, Grid) {
-        let grid = setup_grid();
+        let grid = setup_empty_grid();
         let cache = Cache::new(&grid);
 
         (cache, grid)
     }
 
-    fn setup_solution() -> Vec<u8> {
+    fn setup_empty_solution() -> Vec<u8> {
         vec![0, 0, 1, 0, 4, 0, 7, 0, 9]
     }
 
-    #[test]
-    fn test_amount_of_conflicts() {
-        let grid = setup_grid();
-        let solution = grid.matrix[0].to_vec();
-        let conflicts = amount_of_conflicts(&solution, 0 as usize, &grid);
-
-        assert_eq!(conflicts, 72);
-    } 
+    fn setup_solution() -> Vec<u8> {
+        vec![8,3,1,2,4,5,7,6,9]
+    }
 
     #[test]
-    fn test_conflicts_per_row() {
+    fn test_fitness() {
         let grid = setup_grid();
-        let conflicts = conflicts_per_row(&grid.matrix[0].to_vec(), &grid.matrix[0].to_vec());
+        let sln = grid.matrix[0].to_vec();
+        let neighborhood: Vec<Vec<u8>> = vec![
+            vec![1, 2, 3, 4, 5, 6, 7, 8, 9]; 9
+        ];
 
-        assert_eq!(conflicts, 9);
+        let collisions: u8 = 81;
+        let ranking = fitness(&sln, &neighborhood);
+        let sum = ranking.iter().fold(0, |acc, (collisions, _)| acc + *collisions as u8);
+
+        assert_eq!(collisions, sum)
+    }
+
+    #[test]
+    fn test_fitness_score() {
+        let sln = setup_solution();
+        let neighbour: Vec<u8> = vec![3,8,1,2,4,5,7,6,9];
+        let collisions:usize = 7;
+        let score = fitness_score(&sln, &neighbour);
+
+        assert_eq!(score, collisions);
+
+        let sln = setup_empty_solution();
+        let collisions:usize = 4;
+        let neighbour = sln.clone();
+        let score = fitness_score(&sln, &neighbour);
+
+        assert_eq!(score, collisions);
     }
 
     #[test]
     fn test_gather_fixed_indices() {
-        let sln = setup_solution();
+        let sln = setup_empty_solution();
         let fixed_indices = vec![2, 4, 6, 8];
         let fixed = gather_fixed_indices(&sln);
 
@@ -79,7 +116,7 @@ mod tests {
     #[test]
     fn test_gather_free_indices() {
         let row_index: usize = 1;
-        // let sln = setup_solution();
+        // let sln = setup_empty_solution();
         let (cache, _) = setup_cache();
         let free_indices = vec![0, 1, 3, 5, 7];
         let free = gather_free_indices(row_index, &cache);
@@ -90,7 +127,7 @@ mod tests {
 
     #[test]
     fn test_gather_value_pool() {
-        let mut sln = setup_solution();
+        let mut sln = setup_empty_solution();
         let pool = gather_value_pool(&mut sln);
         let available_values = vec![2, 3, 5, 6, 8];
 
@@ -98,15 +135,15 @@ mod tests {
     }
 
     #[test]
-    fn test_generate_initial_solution_fixed(){
+    fn test_generate_solution_fixed(){
         let row_index: usize = 1;
-        let sln = setup_solution();
+        let sln = setup_empty_solution();
         let (cache, _) = setup_cache();
         let mut generated_solution: Vec<u8> = sln.to_vec();
         let fixed_from_sln = gather_fixed_indices(&sln);
         let mut equal = true;
 
-        generate_initial_solution_fixed(&mut generated_solution, row_index, &cache);
+        generate_solution_fixed(&mut generated_solution, row_index, &cache);
 
         for index in fixed_from_sln.iter() {
             let gen_value = generated_solution[*index];
@@ -117,6 +154,3 @@ mod tests {
         assert!(equal);
     }
 }
-
-
-
