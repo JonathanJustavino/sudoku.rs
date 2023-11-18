@@ -22,7 +22,6 @@ impl Cache {
 
         Self { fixed_positions: fixed_positions }
     }
-
 }
 
 impl fmt::Display for Cache {
@@ -68,6 +67,26 @@ pub fn fitness<'a>(solution: &Vec<u8>, neighborhood: &'a Vec<Vec<u8>>, ) -> Vec<
     }
 
     ranking
+}
+
+
+pub fn accept<'a>(new: &'a (usize, &'a Vec<u8>), old: &'a (usize, &'a Vec<u8>), current_temperature: f64) -> &'a (usize, &'a Vec<u8>) {
+    let new_score = new.0;
+    let old_score = old.0;
+    if new_score < old_score {
+        return new
+    }
+
+    let delta = new_score as f64 - old_score as f64;
+
+    // 1 / (1 + e^( eval(v_current) - eval(v_n) ) / T)
+    let criteria = 1.0 / (1.0 + libm::exp(delta / current_temperature));
+
+    if criteria > 0.5 {
+        return new
+    }
+
+    old
 }
 
 
@@ -136,7 +155,6 @@ pub fn generate_solution_fixed(row: &mut Vec<u8>, row_index: usize, cache: &Cach
 }
 
 
-
 pub fn swap(solution: &mut Vec<u8>) -> (usize, usize) {
     let mut rng = rand::thread_rng();
     let first = rng.gen_range(1..9);
@@ -178,13 +196,34 @@ pub fn generate_neighbourhood(solution: Vec<u8>, row_index: usize, amount: u8, c
     for _ in 0..amount {
         let mut neighbour = solution.to_vec();
         generate_solution_fixed(&mut neighbour, row_index, &cache);
-        let mut x = vec![neighbour];
+        let mut candidate = vec![neighbour.clone()];
 
-        neighbourhood.append(&mut x);
+        neighbourhood.append(&mut candidate);
     }
 
     neighbourhood
 }
+
+
+pub fn evaluate_grid(grid: &Grid) -> usize {
+    let length: usize = 8;
+    let mut total_conflicts = 0;
+    let matrix = grid.matrix;
+
+    for (start, row) in matrix.iter().enumerate() {
+        let solution = row.to_vec();
+        for index in start..length {
+            let next = index + 1;
+            let neighbor = matrix[next].to_vec();
+            let collisions = fitness_score(&solution, &neighbor);
+            total_conflicts += collisions;
+        }
+    }
+
+    total_conflicts
+}
+
+
 
 #[cfg(test)]
 mod annealing_tests;

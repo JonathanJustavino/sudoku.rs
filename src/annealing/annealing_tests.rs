@@ -8,6 +8,7 @@ mod tests {
         gather_free_indices,
         fitness_score,
         fitness,
+        evaluate_grid,
     };
 
     use crate::annealing::Cache;
@@ -153,4 +154,45 @@ mod tests {
 
         assert!(equal);
     }
+
+    #[test]
+    fn test_evaluate_grid() {
+
+        let complete_solution: [[u8; 9]; 9] = [
+            [7, 5, 6, 4, 3, 9, 8, 1, 2],
+            [4, 9, 8, 1, 6, 2, 7, 5, 3],
+            [1, 3, 2, 7, 8, 5, 6, 4, 9],
+            [8, 1, 3, 5, 9, 4, 2, 6, 7],
+            [6, 7, 5, 3, 2, 1, 9, 8, 4],
+            [2, 4, 9, 8, 7, 6, 5, 3, 1],
+            [3, 6, 1, 9, 5, 7, 4, 2, 8],
+            [5, 8, 7, 2, 4, 3, 1, 9, 6],
+            [9, 2, 4, 6, 1, 8, 3, 7, 5]
+        ];
+
+        let complete_grid = Grid { matrix: complete_solution };
+        let conflicts_complete = evaluate_grid(&complete_grid);
+
+        assert_eq!(conflicts_complete, 0);
+
+        let faulty_solution: [[u8; 9]; 9] = [
+            [7, 5, 6, 4, 3, 9, 8, 1, 2],
+            [4, 9, 8, 1, 6, 2, 7, 5, 3],
+            [8, 1, 3, 5, 9, 4, 2, 6, 7],
+            [6, 7, 5, 3, 2, 1, 9, 8, 4],
+            [2, 4, 9, 8, 7, 6, 5, 3, 1],
+            [4, 9, 8, 1, 6, 2, 7, 5, 3],
+            [3, 6, 1, 9, 5, 7, 4, 2, 8],
+            [5, 8, 7, 2, 4, 3, 1, 9, 6],
+            [9, 2, 4, 6, 1, 8, 3, 7, 5]
+        ];
+
+        let faulty_grid = Grid { matrix: faulty_solution };
+        let conflicts_faulty = evaluate_grid(&faulty_grid);
+        
+        assert_eq!(conflicts_faulty, 9);
+
+        println!("yooo");
+    }
+
 }
