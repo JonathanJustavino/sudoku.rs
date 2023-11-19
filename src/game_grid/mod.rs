@@ -1,9 +1,16 @@
 use std::fmt;
 
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct Grid {
     pub matrix: [[u8; 9]; 9],
 }
+
+impl Grid {
+    pub fn new(matrix: [[u8; 9]; 9]) -> Self {
+        Self {matrix: matrix}
+    }
+}
+
 
 impl Grid {
     pub fn check_value(&self, input: &u8, position: (&u8, &u8)) -> bool {

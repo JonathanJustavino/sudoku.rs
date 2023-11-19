@@ -13,7 +13,6 @@ pub struct Cache {
 
 impl Cache {
     pub fn new(grid: &Grid) -> Self {
-        println!("{}", grid);
         let mut fixed_positions: Vec<Vec<usize>> = vec![vec![]; 9];
         for (index, row) in grid.matrix.iter().enumerate() {
             let mut fixed = gather_fixed_indices(&row.to_vec());
@@ -223,7 +222,26 @@ pub fn evaluate_grid(grid: &Grid) -> usize {
     total_conflicts
 }
 
+pub fn anneal(mut grid: &mut Grid, max_temperature: f64) {
+    // initialize temperature
+    let cooling_ration = 0.95;
+    let mut temperature = max_temperature;
+    let mut init_grid: [[u8; 9]; 9] = [[0; 9]; 9];
 
+    init_grid.copy_from_slice(&grid.matrix);
+    let cache_grid = Grid::new(init_grid);
+    println!("{}", grid);
+
+    let cache = Cache::new(&cache_grid);
+    initial_assignment(&mut grid, &cache);
+
+    println!("{}", cache);
+    println!("{}", grid);
+}
+
+pub fn search() {
+
+}
 
 #[cfg(test)]
 mod annealing_tests;
