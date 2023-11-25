@@ -80,7 +80,26 @@ pub fn evaluate_solution(solution: &Vec<u8>, index: usize, grid: &Grid)  -> usiz
     score
 }
 
-pub fn accept<'a>(new: &'a (usize, &'a Vec<u8>), old: &'a (usize, &'a Vec<u8>), current_temperature: &f64) -> &'a (usize, &'a Vec<u8>) {
+pub fn accept2<'a>(new: &'a (usize, &'a Vec<u8>), old: &'a (usize, &'a Vec<u8>), current_temperature: &f64) -> &'a (usize, &'a Vec<u8>) {
+    let new_score = new.0;
+    let old_score = old.0;
+    if new_score < old_score {
+        return new
+    }
+
+    let delta = new_score as f64 - old_score as f64;
+
+    // 1 / (1 + e^( eval(v_current) - eval(v_n) ) / T)
+    let criteria = 1.0 / (1.0 + libm::exp(delta / current_temperature));
+
+    if criteria > 0.5 {
+        return new
+    }
+
+    old
+}
+
+pub fn accept<'a>(new: (usize, Vec<u8>), old: (usize, Vec<u8>), current_temperature: f64) -> (usize, Vec<u8>) {
     let new_score = new.0;
     let old_score = old.0;
     if new_score < old_score {
@@ -102,18 +121,12 @@ pub fn accept<'a>(new: &'a (usize, &'a Vec<u8>), old: &'a (usize, &'a Vec<u8>), 
 
 pub fn initial_assignment(grid: &mut Grid, cache: &Cache) {
     let mut matrix = grid.matrix;
-    let length: usize = 9;
 
     for (index, row) in matrix.iter_mut().enumerate() {
         let mut current_row = row.to_vec();
         generate_solution_fixed(&mut current_row, index, cache);
-
-        for index in 0..length {
-            row[index] = current_row[index];
-        }
+        assign_solution(current_row, index, grid);
     }
-
-    grid.matrix = matrix;
 }
 
 
@@ -142,8 +155,15 @@ pub fn gather_free_indices(row_index: usize, cache: &Cache) -> Vec<usize> {
 }
 
 
-pub fn gather_value_pool(row: &Vec<u8>) -> Vec<u8> {
-    let fixed_values = BTreeSet::from_iter(row);
+pub fn gather_value_pool(row: &Vec<u8>, index: usize, cache: &Cache) -> Vec<u8> {
+    let mut fixed_values = vec![];
+
+    for idx in &cache.fixed_positions[index] {
+        fixed_values.push(row[*idx])
+    }
+
+    let fixed_values = BTreeSet::from_iter(fixed_values);
+
     let mut free_values: Vec<u8> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9];
     free_values.retain(|value| !fixed_values.contains(value));
 
@@ -153,7 +173,7 @@ pub fn gather_value_pool(row: &Vec<u8>) -> Vec<u8> {
 
 pub fn generate_solution_fixed(row: &mut Vec<u8>, row_index: usize, cache: &Cache){
     let free_positions = gather_free_indices(row_index, cache);
-    let mut pool = gather_value_pool(&row);
+    let mut pool = gather_value_pool(&row, row_index, cache);
     let mut rng = rand::thread_rng();
 
     pool.shuffle(&mut rng);
@@ -206,12 +226,20 @@ pub fn generate_neighbourhood(solution: Vec<u8>, row_index: usize, amount: u8, c
     for _ in 0..amount {
         let mut neighbour = solution.to_vec();
         generate_solution_fixed(&mut neighbour, row_index, &cache);
-        let mut candidate = vec![neighbour.clone()];
-
-        neighbourhood.append(&mut candidate);
+        // let mut candidate = vec![neighbour.clone()];
+        // neighbourhood.append(&mut candidate);
+        neighbourhood.push(neighbour);
     }
 
     neighbourhood
+}
+
+pub fn assign_solution(solution: Vec<u8>, index: usize, grid: &mut Grid) {
+    let new = match TryFrom::try_from(solution) {
+        Ok(ba) => ba,
+        Err(_) => panic!("Could not convert solution vec to [ ]")
+    };
+    grid.matrix[index] = new;
 }
 
 
@@ -233,7 +261,37 @@ pub fn evaluate_grid(grid: &Grid) -> usize {
     total_conflicts
 }
 
-pub fn anneal(mut grid: &mut Grid, temperature: &f64, cooling_ratio: &f64) {
+pub fn explore(item_index: usize, grid: &Grid, cache: &Cache, temperature: f64) -> (usize, Vec<u8>) {
+    let start = grid.matrix[0].to_vec();
+    let mut current_solution_score: usize = evaluate_solution(&start, item_index, &grid);
+    let mut current_solution: (usize, Vec<u8>) = (current_solution_score, start);
+
+    for (index, row) in grid.matrix.iter().enumerate() {
+        if index == item_index {
+            continue;
+        }
+        // Select current point
+        let solution = row.to_vec();
+        // Generate Neighborhood from current point
+        let neighborhood = generate_neighbourhood(solution.clone(), index, 9, &cache);
+        // Evaluate current point
+        current_solution_score = evaluate_solution(&solution, index, &grid);
+        let current = (current_solution_score, solution.clone());
+        current_solution = current;
+
+        for neighbor in neighborhood {
+            // Evaluate neighbor
+            let neighbor_score = evaluate_solution(&solution, index, &grid);
+            // Select new current point
+            current_solution = accept((neighbor_score, neighbor), current_solution, temperature);
+        }
+    }
+
+    current_solution
+
+}
+
+pub fn anneal(mut grid: &mut Grid, temperature: f64, cooling_ratio: f64, total_attempts: u32) {
     // initialize temperature
     let mut init_grid: [[u8; 9]; 9] = [[0; 9]; 9];
 
@@ -246,31 +304,41 @@ pub fn anneal(mut grid: &mut Grid, temperature: &f64, cooling_ratio: &f64) {
     let conflicts = evaluate_grid(&grid);
 
     if conflicts == 0 {
+        println!("{}", cache);
+        println!("{}", grid);
         return;
     }
 
-    //Select current point
-    //TODO: Find out how to initilize coliision count for solution
-    for (index, row) in grid.matrix.iter().enumerate() {
-        let mut solution = row.to_vec();
-        let neighborhood = generate_neighbourhood(solution.clone(), index, 9, &cache);
-        // let mut current = fitness_grid(&solution, &neighborhood);
+    let mut current_temperature = temperature;
 
-        // let ranking = fitness_grid(&solution, &neighborhood);
-        // for (n_index, neighbor) in ranking.iter().enumerate() {
-            // solution;
-            // accept(neighbor, &current, temperature);
-        // }
+    for _ in 0..total_attempts {
+        // for (index, row) in grid.matrix.iter().enumerate() {
+        for index in 0..grid.matrix.len() {
+            let new = explore(index, grid, &cache, temperature);
+            assign_solution(new.1, index, grid);
+            let conflicts = evaluate_grid(&grid);
+
+            if conflicts == 0 {
+                println!("{}", cache);
+                println!("{}", grid);
+                return;
+            }
+        }
+
+        // let conflicts = evaluate_grid(&grid);
+        current_temperature = current_temperature * cooling_ratio;
     }
 
+    let log_start = "+";
+    let log_dash = "-";
 
+    println!("{}{}{}", log_start, log_dash.repeat(10), log_start);
+    println!("Solution not found!");
+    println!("{}{}{}", log_start, log_dash.repeat(10), log_start);
     println!("{}", cache);
     println!("{}", grid);
 }
 
-pub fn search() {
-
-}
 
 #[cfg(test)]
 mod annealing_tests;

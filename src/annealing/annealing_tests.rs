@@ -1,5 +1,6 @@
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeSet;
     use std::vec;
 
     use crate::annealing::{gather_value_pool, generate_solution_fixed, self};
@@ -10,6 +11,9 @@ mod tests {
         fitness_grid,
         evaluate_solution,
         fitness_score_grid,
+        assign_solution,
+        generate_neighbourhood,
+        initial_assignment,
     };
 
     use crate::annealing::Cache;
@@ -137,8 +141,10 @@ mod tests {
 
     #[test]
     fn test_gather_value_pool() {
+        let (cache, grid) = setup_cache();
         let mut sln = setup_empty_solution();
-        let pool = gather_value_pool(&mut sln);
+        let index: usize = 1;
+        let pool = gather_value_pool(&mut sln, index, &cache);
         let available_values = vec![2, 3, 5, 6, 8];
 
         assert_eq!(available_values, pool);
@@ -263,6 +269,51 @@ mod tests {
         let score = evaluate_solution(&solution, index, &faulty_grid);
 
         assert_eq!(score, 72);
+    }
+
+    #[test]
+    fn test_assign_solution() {
+        let index: usize = 0;
+        let solution: Vec<u8> = vec![1; 9];
+        let mut grid = setup_solved_example();
+        let row = grid.matrix[index];
+
+        let check: [u8; 9] = [1,1,1,1,1,1,1,1,1];
+        assert_ne!(check, row);
+
+        assign_solution(solution, index, &mut grid);
+
+        let row = grid.matrix[index];
+        assert_eq!(check, row);
+    }
+
+    #[test]
+    fn test_initial_assignment() {
+        let mut grid: Grid = setup_empty_example();
+        let cache: Cache = Cache::new(&grid);
+        initial_assignment(&mut grid, &cache);
+        let mut contains_zeros = false;
+
+        for row in grid.matrix.iter() {
+            let check = BTreeSet::from_iter(row);
+            contains_zeros = check.contains(&0);
+        }
+
+        assert!(!contains_zeros);
+    }
+
+    #[test]
+    fn test_generate_neighborhood() {
+
+        let mut grid: Grid = setup_empty_example();
+        let cache: Cache = Cache::new(&grid);
+        let row_index: usize = 1;
+        let amount = 9;
+        let solution = vec![1, 4, 2, 6, 9, 3, 8, 7, 5];
+        initial_assignment(&mut grid, &cache);
+
+        let neighborhood = generate_neighbourhood(solution, row_index, amount, &cache);
+        let x = 0;
     }
 
 }
