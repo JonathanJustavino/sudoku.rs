@@ -45,9 +45,10 @@ impl fmt::Display for Cache {
 }
 
 
-pub fn fitness_score(solution: &Vec<u8>, neighbor: &Vec<u8>) -> usize {
+pub fn fitness_score_grid(solution: &Vec<u8>, row: &[u8;9]) -> usize {
+    // Yields amount of overlapping values of vector and slice
     let mut conflicts: usize = 0;
-    let collisions = neighbor.iter()
+    let collisions = row.iter()
                                     .enumerate()
                                     .filter(|(index, item)| **item == solution[*index] && **item > 0).count();
     conflicts += collisions;
@@ -55,12 +56,16 @@ pub fn fitness_score(solution: &Vec<u8>, neighbor: &Vec<u8>) -> usize {
     conflicts
 }
 
+pub fn fitness_grid<'a>(solution: &Vec<u8>, index: usize, grid: &'a Grid) -> Vec<(usize, &'a[u8; 9])>{
+    // Scores solution based on conflicts in neighborhood
+    let mut ranking: Vec<(usize, &[u8; 9])> = vec![];
 
-pub fn fitness<'a>(solution: &Vec<u8>, neighborhood: &'a Vec<Vec<u8>>, ) -> Vec<(usize, &'a Vec<u8>)>{
-    let mut ranking: Vec<(usize, &Vec<u8>)> = vec![];
+    for (row_index, neighbor) in grid.matrix.iter().enumerate() {
+        if index == row_index {
+            continue;
+        }
 
-    for neighbor in neighborhood.iter() {
-        let score = fitness_score(&solution, &neighbor);
+        let score = fitness_score_grid(&solution, &neighbor);
         let item = (score, neighbor);
         ranking.push(item);
     }
@@ -68,8 +73,14 @@ pub fn fitness<'a>(solution: &Vec<u8>, neighborhood: &'a Vec<Vec<u8>>, ) -> Vec<
     ranking
 }
 
+pub fn evaluate_solution(solution: &Vec<u8>, index: usize, grid: &Grid)  -> usize {
+    let ranking = fitness_grid(solution, index, grid);
+    let score = ranking.iter().map(|(value, _) | *value ).sum();
 
-pub fn accept<'a>(new: &'a (usize, &'a Vec<u8>), old: &'a (usize, &'a Vec<u8>), current_temperature: f64) -> &'a (usize, &'a Vec<u8>) {
+    score
+}
+
+pub fn accept<'a>(new: &'a (usize, &'a Vec<u8>), old: &'a (usize, &'a Vec<u8>), current_temperature: &f64) -> &'a (usize, &'a Vec<u8>) {
     let new_score = new.0;
     let old_score = old.0;
     if new_score < old_score {
@@ -213,8 +224,8 @@ pub fn evaluate_grid(grid: &Grid) -> usize {
         let solution = row.to_vec();
         for index in start..length {
             let next = index + 1;
-            let neighbor = matrix[next].to_vec();
-            let collisions = fitness_score(&solution, &neighbor);
+            let neighbor = matrix[next];
+            let collisions = fitness_score_grid(&solution, &neighbor);
             total_conflicts += collisions;
         }
     }
@@ -222,10 +233,8 @@ pub fn evaluate_grid(grid: &Grid) -> usize {
     total_conflicts
 }
 
-pub fn anneal(mut grid: &mut Grid, max_temperature: f64) {
+pub fn anneal(mut grid: &mut Grid, temperature: &f64, cooling_ratio: &f64) {
     // initialize temperature
-    let cooling_ration = 0.95;
-    let mut temperature = max_temperature;
     let mut init_grid: [[u8; 9]; 9] = [[0; 9]; 9];
 
     init_grid.copy_from_slice(&grid.matrix);
@@ -234,6 +243,26 @@ pub fn anneal(mut grid: &mut Grid, max_temperature: f64) {
 
     let cache = Cache::new(&cache_grid);
     initial_assignment(&mut grid, &cache);
+    let conflicts = evaluate_grid(&grid);
+
+    if conflicts == 0 {
+        return;
+    }
+
+    //Select current point
+    //TODO: Find out how to initilize coliision count for solution
+    for (index, row) in grid.matrix.iter().enumerate() {
+        let mut solution = row.to_vec();
+        let neighborhood = generate_neighbourhood(solution.clone(), index, 9, &cache);
+        // let mut current = fitness_grid(&solution, &neighborhood);
+
+        // let ranking = fitness_grid(&solution, &neighborhood);
+        // for (n_index, neighbor) in ranking.iter().enumerate() {
+            // solution;
+            // accept(neighbor, &current, temperature);
+        // }
+    }
+
 
     println!("{}", cache);
     println!("{}", grid);

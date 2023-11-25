@@ -3,12 +3,6 @@ mod tests {
     use crate::game_grid::Grid;
 
     #[test]
-    fn it_works() {
-        let result = 1 + 1;
-        assert_eq!(result, 2);
-    }
-
-    #[test]
     fn test_check_row() {
         let mut grid = Grid {
             matrix: [[0; 9]; 9],

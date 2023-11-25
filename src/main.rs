@@ -33,7 +33,8 @@ fn main() {
 
 
     let mut grid = Grid { matrix: matrix };
-    let max_temperature = 0.95;
+    let temperature: f64 = 10.0;
+    let cooling_ratio = 0.95;
 
-    annealing::anneal(&mut grid, max_temperature);
+    annealing::anneal(&mut grid, &temperature, &cooling_ratio);
 }

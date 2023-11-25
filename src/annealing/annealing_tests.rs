@@ -6,20 +6,14 @@ mod tests {
     use crate::annealing::{ 
         gather_fixed_indices, 
         gather_free_indices,
-        fitness_score,
-        fitness,
         evaluate_grid,
+        fitness_grid,
+        evaluate_solution,
+        fitness_score_grid,
     };
 
     use crate::annealing::Cache;
     use crate::game_grid::Grid;
-
-
-    #[test]
-    fn it_works() {
-        let result = 1 + 1;
-        assert_eq!(result, 2);
-    }
 
 
     fn setup_empty_example() -> Grid {
@@ -120,38 +114,6 @@ mod tests {
     }
 
     #[test]
-    fn test_fitness() {
-        let grid = setup_grid();
-        let sln = grid.matrix[0].to_vec();
-        let neighborhood: Vec<Vec<u8>> = vec![
-            vec![1, 2, 3, 4, 5, 6, 7, 8, 9]; 9
-        ];
-
-        let collisions: u8 = 81;
-        let ranking = fitness(&sln, &neighborhood);
-        let sum = ranking.iter().fold(0, |acc, (collisions, _)| acc + *collisions as u8);
-
-        assert_eq!(collisions, sum)
-    }
-
-    #[test]
-    fn test_fitness_score() {
-        let sln = setup_solution();
-        let neighbour: Vec<u8> = vec![3,8,1,2,4,5,7,6,9];
-        let collisions:usize = 7;
-        let score = fitness_score(&sln, &neighbour);
-
-        assert_eq!(score, collisions);
-
-        let sln = setup_empty_solution();
-        let collisions:usize = 4;
-        let neighbour = sln.clone();
-        let score = fitness_score(&sln, &neighbour);
-
-        assert_eq!(score, collisions);
-    }
-
-    #[test]
     fn test_gather_fixed_indices() {
         let sln = setup_empty_solution();
         let fixed_indices = vec![2, 4, 6, 8];
@@ -205,17 +167,20 @@ mod tests {
     #[test]
     fn test_evaluate_grid() {
 
-        let complete_solution: [[u8; 9]; 9] = [
-            [7, 5, 6, 4, 3, 9, 8, 1, 2],
-            [4, 9, 8, 1, 6, 2, 7, 5, 3],
-            [1, 3, 2, 7, 8, 5, 6, 4, 9],
-            [8, 1, 3, 5, 9, 4, 2, 6, 7],
-            [6, 7, 5, 3, 2, 1, 9, 8, 4],
-            [2, 4, 9, 8, 7, 6, 5, 3, 1],
-            [3, 6, 1, 9, 5, 7, 4, 2, 8],
-            [5, 8, 7, 2, 4, 3, 1, 9, 6],
-            [9, 2, 4, 6, 1, 8, 3, 7, 5]
-        ];
+        // let complete_solution: [[u8; 9]; 9] = [
+        //     [7, 5, 6, 4, 3, 9, 8, 1, 2],
+        //     [4, 9, 8, 1, 6, 2, 7, 5, 3],
+        //     [1, 3, 2, 7, 8, 5, 6, 4, 9],
+        //     [8, 1, 3, 5, 9, 4, 2, 6, 7],
+        //     [6, 7, 5, 3, 2, 1, 9, 8, 4],
+        //     [2, 4, 9, 8, 7, 6, 5, 3, 1],
+        //     [3, 6, 1, 9, 5, 7, 4, 2, 8],
+        //     [5, 8, 7, 2, 4, 3, 1, 9, 6],
+        //     [9, 2, 4, 6, 1, 8, 3, 7, 5]
+        // ];
+        
+        let complete_grid = setup_solved_example();
+        let complete_solution = complete_grid.matrix;
 
         let complete_grid = Grid { matrix: complete_solution };
         let conflicts_complete = evaluate_grid(&complete_grid);
@@ -243,6 +208,61 @@ mod tests {
         let conflicts_solved = evaluate_grid(&grid_solved);
 
         assert_eq!(conflicts_solved, 0);
+    }
+
+    #[test]
+    fn test_fitness_score_grid() {
+        let grid = setup_solved_example();
+        let solution: Vec<u8> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9];
+        let collisions = fitness_score_grid(&solution, &grid.matrix[0]);
+
+        assert_eq!(collisions, 0);
+
+        let conflicting_solution = grid.matrix[0].to_vec();
+        let conflict = fitness_score_grid(&conflicting_solution, &grid.matrix[0]);
+
+        assert_eq!(conflict, 9);
+    }
+
+    #[test]
+    fn test_fitness_grid() {
+        let complete_grid = setup_solved_example();
+        let index: usize = 0;
+        let solution = complete_grid.matrix[index].to_vec();
+
+        let ranking = fitness_grid(&solution, index, &complete_grid);
+        let score: usize = ranking.iter().map(|(value, _) | *value ).sum();
+
+        assert_eq!(score, 0);
+        // evaluate_solution(&solution, ranking);
+
+        let faulty_grid = setup_grid();
+        let index: usize = 2;
+        let solution = faulty_grid.matrix[index].to_vec();
+        let ranking = fitness_grid(&solution, index, &faulty_grid);
+        let score: usize = ranking.iter().map(|(value, _) | *value ).sum();
+
+        assert_eq!(score, 72);
+    }
+
+    #[test]
+    fn test_evaluate_solution() {
+        let complete_grid = setup_solved_example();
+        let index: usize = 0;
+        let solution = complete_grid.matrix[index].to_vec();
+
+        let score = evaluate_solution(&solution, index, &complete_grid);
+
+        assert_eq!(score, 0);
+        // evaluate_solution(&solution, ranking);
+
+        let faulty_grid = setup_grid();
+        let index: usize = 2;
+        let solution = faulty_grid.matrix[index].to_vec();
+
+        let score = evaluate_solution(&solution, index, &faulty_grid);
+
+        assert_eq!(score, 72);
     }
 
 }
