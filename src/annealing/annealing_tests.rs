@@ -3,17 +3,19 @@ mod tests {
     use std::collections::BTreeSet;
     use std::vec;
 
-    use crate::annealing::{gather_value_pool, generate_solution_fixed, self};
     use crate::annealing::{ 
         gather_fixed_indices, 
         gather_free_indices,
-        evaluate_grid,
         fitness_grid,
         evaluate_solution,
-        fitness_score_grid,
+        fitness_score_row,
         assign_solution,
         generate_neighbourhood,
         initial_assignment,
+        gather_value_pool,
+        generate_solution_fixed,
+        swap_values,
+        check_completeness,
     };
 
     use crate::annealing::Cache;
@@ -61,6 +63,25 @@ mod tests {
         grid
     }
 
+    fn setup_off_by_one() -> Grid {
+        let matrix:[[u8; 9]; 9] = [        // -------------------------
+            [7, 8, 9, 5, 4, 1, 6, 2, 3],   // | 7 8 9 | 5 4 1 | 6 2 3 |
+            [1, 4, 2, 6, 9, 3, 7, 8, 5],   // | 1 4 2 | 6 9 3 | 7 8 5 |
+            [6, 5, 3, 2, 8, 7, 4, 1, 9],   // | 6 5 3 | 2 8 7 | 4 1 9 |
+                                           // -------------------------
+            [9, 6, 4, 1, 2, 5, 3, 7, 8],   // | 9 6 4 | 1 2 5 | 3 7 8 |
+            [8, 2, 1, 7, 3, 9, 5, 4, 6],   // | 8 2 1 | 7 3 9 | 5 4 6 |
+            [3, 7, 5, 8, 6, 4, 2, 9, 1],   // | 3 7 5 | 8 6 4 | 2 9 1 |
+                                           // -------------------------
+            [2, 1, 7, 9, 5, 6, 8, 3, 4],   // | 2 1 7 | 9 5 6 | 8 3 4 |
+            [4, 9, 6, 3, 7, 8, 1, 5, 2],   // | 4 9 6 | 3 7 8 | 1 5 2 |
+            [5, 3, 8, 4, 1, 2, 9, 6, 7],   // | 5 3 8 | 4 1 2 | 9 6 7 |
+        ];                                 // -------------------------
+
+        let grid = Grid { matrix: matrix };
+
+        grid
+    }
 
     fn setup_empty_grid() -> Grid {
         let matrix:[[u8; 9]; 9] = [        // -------------------------
@@ -109,13 +130,18 @@ mod tests {
         (cache, grid)
     }
 
+    fn setup_solved_cache() -> (Cache, Grid) {
+        let grid = setup_solved_example();
+        let empty_grid = setup_empty_example();
+        let cache = Cache::new(&empty_grid);
+
+        (cache, grid)
+    }
+
     fn setup_empty_solution() -> Vec<u8> {
         vec![0, 0, 1, 0, 4, 0, 7, 0, 9]
     }
 
-    fn setup_solution() -> Vec<u8> {
-        vec![8,3,1,2,4,5,7,6,9]
-    }
 
     #[test]
     fn test_gather_fixed_indices() {
@@ -171,7 +197,7 @@ mod tests {
     }
 
     #[test]
-    fn test_evaluate_grid() {
+    fn test_check_completeness() {
 
         // let complete_solution: [[u8; 9]; 9] = [
         //     [7, 5, 6, 4, 3, 9, 8, 1, 2],
@@ -189,7 +215,7 @@ mod tests {
         let complete_solution = complete_grid.matrix;
 
         let complete_grid = Grid { matrix: complete_solution };
-        let conflicts_complete = evaluate_grid(&complete_grid);
+        let conflicts_complete = check_completeness(&complete_grid);
 
         assert_eq!(conflicts_complete, 0);
 
@@ -206,12 +232,12 @@ mod tests {
         ];
 
         let faulty_grid = Grid { matrix: faulty_solution };
-        let conflicts_faulty = evaluate_grid(&faulty_grid);
+        let conflicts_faulty = check_completeness(&faulty_grid);
         
         assert_eq!(conflicts_faulty, 9);
         
         let grid_solved = setup_solved_example();
-        let conflicts_solved = evaluate_grid(&grid_solved);
+        let conflicts_solved = check_completeness(&grid_solved);
 
         assert_eq!(conflicts_solved, 0);
     }
@@ -220,12 +246,12 @@ mod tests {
     fn test_fitness_score_grid() {
         let grid = setup_solved_example();
         let solution: Vec<u8> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9];
-        let collisions = fitness_score_grid(&solution, &grid.matrix[0]);
+        let collisions = fitness_score_row(&solution, &grid.matrix[0]);
 
         assert_eq!(collisions, 0);
 
         let conflicting_solution = grid.matrix[0].to_vec();
-        let conflict = fitness_score_grid(&conflicting_solution, &grid.matrix[0]);
+        let conflict = fitness_score_row(&conflicting_solution, &grid.matrix[0]);
 
         assert_eq!(conflict, 9);
     }
@@ -304,7 +330,6 @@ mod tests {
 
     #[test]
     fn test_generate_neighborhood() {
-
         let mut grid: Grid = setup_empty_example();
         let cache: Cache = Cache::new(&grid);
         let row_index: usize = 1;
@@ -312,8 +337,54 @@ mod tests {
         let solution = vec![1, 4, 2, 6, 9, 3, 8, 7, 5];
         initial_assignment(&mut grid, &cache);
 
-        let neighborhood = generate_neighbourhood(solution, row_index, amount, &cache);
-        let x = 0;
+        let neighborhood = generate_neighbourhood(solution.clone(), row_index, amount, &cache);
+
+        for row in neighborhood {
+            assert_ne!(solution, row);
+        }
     }
+
+    #[test]
+    fn test_swap() {
+        let index: usize = 0;
+        let (cache, grid) = setup_solved_cache();
+        let mut sln = grid.matrix[index].clone().to_vec();
+        let reference = sln.clone();
+
+        assert_eq!(sln, reference);
+        swap_values(&mut sln, index, &cache);
+
+        assert_ne!(sln, reference);
+    }
+
+    #[test]
+    fn test_complete() {
+        let matrix: [[u8;9];9] = [        //----------------------------------
+        [ 2, 8, 6, 5, 4, 3, 7, 9, 1 ],    //| 2, 8, 6, | 5, 4, 3, | 7, 9, 1, |
+        [ 1, 4, 2, 6, 9, 8, 5, 3, 7 ],    //| 1, 4, 2, | 6, 9, 8, | 5, 3, 7, |
+        [ 6, 7, 3, 2, 8, 5, 4, 1, 9 ],    //| 6, 7, 3, | 2, 8, 5, | 4, 1, 9, |
+                                          //----------------------------------
+        [ 5, 6, 4, 9, 2, 1, 3, 7, 8 ],    //| 5, 6, 4, | 9, 2, 1, | 3, 7, 8, |
+        [ 8, 3, 5, 7, 1, 9, 2, 4, 6 ],    //| 8, 3, 5, | 7, 1, 9, | 2, 4, 6, |
+        [ 3, 2, 1, 4, 6, 7, 9, 8, 5 ],    //| 3, 2, 1, | 4, 6, 7, | 9, 8, 5, |
+                                          //----------------------------------
+        [ 9, 1, 7, 3, 5, 6, 8, 2, 4 ],    //| 9, 1, 7, | 3, 5, 6, | 8, 2, 4, |
+        [ 7, 9, 8, 6, 3, 4, 1, 5, 2 ],    //| 7, 9, 8, | 6, 3, 4, | 1, 5, 2, |
+        [ 4, 5, 9, 8, 7, 2, 1, 6, 3 ],    //| 4, 5, 9, | 8, 7, 2, | 1, 6, 3, |
+        ];                                //----------------------------------
+
+        let grid: Grid = Grid::new(matrix);
+        let mut sub_grid_conflicts: usize = 0;
+        let conflicts = check_completeness(&grid);
+
+        assert_eq!(22, conflicts);
+
+
+
+        let grid = setup_solved_example();
+        let conflicts = check_completeness(&grid);
+        assert_eq!(0, conflicts);
+    }
+
 
 }
