@@ -1,5 +1,5 @@
 use core::fmt;
-use std::{collections::BTreeSet, io::stdout, iter::FromIterator, usize, vec};
+use std::{collections::BTreeSet, io::stdout, iter::FromIterator, ops::Index, usize, vec};
 use rand::{Rng, seq::SliceRandom};
 use itertools::{izip};
 
@@ -205,34 +205,36 @@ pub fn swap_values(solution: &mut Vec<u8>, index: usize, cache: &Cache) -> (usiz
     let mut rng = rand::thread_rng();
 
     pool.retain(|value|!fixed_indexes.contains(value));
+    let mut second_pool = pool.clone();
 
-    let mut choice = pool.choose_multiple(&mut rng, 2);
+    // let mut choice = pool.choose_multiple(&mut rng, 2);
 
-    // let no_swap: &usize = &0;
-    // let first = choice.next().unwrap_or(no_swap);
-    // let second = choice.next().unwrap_or(no_swap);
-    // let first = choice.next().unwrap();
-    // let second = choice.next().unwrap();
-    let first  = match choice.next() {
-        Some(value) => value,
-        None => &0,
+    let first = match pool.choose(&mut rng) {
+        Some(value) => *value,
+        None => 0,
     };
 
-    let second  = match choice.next() {
-        Some(value) => value,
-        None => &0,
+    second_pool.retain(|value| *value != first);
+
+    let second = match second_pool.choose(&mut rng) {
+        Some(value) => *value,
+        None => 0,
     };
 
-    if *first == 0 || *second == 0 {
-        return (0, 0)
+    if first == second {
+        panic!("Identical indices -> no change");
     }
 
-    let first_value = solution[*first];
+    // if *first == 0 || *second == 0 {
+    //     return (0, 0)
+    // }
 
-    solution[*first] = solution[*second];
-    solution[*second] = first_value;
+    let first_value = solution[first];
 
-    (*first, *second)
+    solution[first] = solution[second];
+    solution[second] = first_value;
+
+    (first, second)
 }
 
 

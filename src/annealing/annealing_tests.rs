@@ -6,7 +6,6 @@ mod tests {
     use crate::annealing::{ 
         assign_solution, check_completeness, evaluate_solution, fitness_grid, fitness_score_row, fitness_subgrid, gather_fixed_indices, gather_free_indices, gather_value_pool, generate_neighbourhood, generate_solution_fixed, initial_assignment, swap_values
     };
-
     use crate::annealing::Cache;
     use crate::game_grid::Grid;
 
@@ -386,11 +385,18 @@ mod tests {
         let (cache, grid) = setup_solved_cache();
         let mut sln = grid.matrix[index].clone().to_vec();
         let reference = sln.clone();
+        let elements = sln.len();
+        let mut matching = sln.iter().zip(&reference).filter(|&(a, b)| a == b).count();
 
-        assert_eq!(sln, reference);
-        swap_values(&mut sln, index, &cache);
+        assert_eq!(elements, matching);
+        for _ in 0..100 {
+            let vals = swap_values(&mut sln, index, &cache);
+            println!("{} - {}", vals.0, vals.1);
+            let mut matching = sln.iter().zip(&reference).filter(|&(a, b)| a == b).count();
+        }
 
-        assert_ne!(sln, reference);
+        matching = sln.iter().zip(&reference).filter(|&(a, b)| a == b).count();
+        assert_ne!(elements, matching);
     }
 
     #[test]
