@@ -1,5 +1,5 @@
 use core::fmt;
-use std::{vec, collections::BTreeSet, iter::FromIterator, io::stdout};
+use std::{collections::BTreeSet, io::stdout, iter::FromIterator, usize, vec};
 use rand::{Rng, seq::SliceRandom};
 use itertools::{izip};
 
@@ -46,13 +46,18 @@ impl fmt::Display for Cache {
 }
 
 pub fn fitness_subgrid(grid: &Grid, index: usize) -> usize {
-
     let stride = 3;
     let mut subgrid;
     let mut duplicates: usize = 0;
+    let column_offset = index % 3;
+    let row_offset: usize = match index {
+        0 ..= 2 => 0,
+        3 ..= 5 => 1,
+        _ => 2,
+    };
 
-    for row_triple in grid.matrix.windows(stride).step_by(stride) {
-        for (row_subgrid_0, row_subgrid_1, row_subgrid_2) in izip!(row_triple[0].windows(3), row_triple[1].windows(3), row_triple[2].windows(3)).step_by(3){
+    for row_triple in grid.matrix.windows(stride).step_by(stride).skip(row_offset) {
+        for (row_subgrid_0, row_subgrid_1, row_subgrid_2) in izip!(row_triple[0].windows(3), row_triple[1].windows(3), row_triple[2].windows(3)).step_by(3).skip(column_offset){
             subgrid = vec![];
             subgrid.extend_from_slice(row_subgrid_0);
             subgrid.extend_from_slice(row_subgrid_1);
@@ -62,7 +67,9 @@ pub fn fitness_subgrid(grid: &Grid, index: usize) -> usize {
             let sub_grid_collisions = 9 - subgrid.len();
 
             duplicates += sub_grid_collisions;
+            break;
         }
+        break;
     }
 
     duplicates
@@ -200,8 +207,26 @@ pub fn swap_values(solution: &mut Vec<u8>, index: usize, cache: &Cache) -> (usiz
     pool.retain(|value|!fixed_indexes.contains(value));
 
     let mut choice = pool.choose_multiple(&mut rng, 2);
-    let first = choice.next().unwrap();
-    let second = choice.next().unwrap();
+
+    // let no_swap: &usize = &0;
+    // let first = choice.next().unwrap_or(no_swap);
+    // let second = choice.next().unwrap_or(no_swap);
+    // let first = choice.next().unwrap();
+    // let second = choice.next().unwrap();
+    let first  = match choice.next() {
+        Some(value) => value,
+        None => &0,
+    };
+
+    let second  = match choice.next() {
+        Some(value) => value,
+        None => &0,
+    };
+
+    if *first == 0 || *second == 0 {
+        return (0, 0)
+    }
+
     let first_value = solution[*first];
 
     solution[*first] = solution[*second];
@@ -283,32 +308,29 @@ pub fn evaluate_grid(new: &Vec<u8>, index: usize, grid: &Grid) -> usize {
 
 
 pub fn check_completeness(grid: &Grid) -> usize {
-    let length: usize = 8;
     let mut total_conflicts = 0;
     let matrix = grid.matrix;
 
-    for (start, row) in matrix.iter().enumerate() {
+    for (row_index, row) in matrix.iter().enumerate() {
         let solution = row.to_vec();
-        for index in start..length {
-            let next = index + 1;
-            let neighbor = matrix[next];
-            let collisions = fitness_score_row(&solution, &neighbor);
+        for next_row in matrix.iter().skip(row_index + 1) {
+            let collisions = fitness_score_row(&solution, next_row);
             total_conflicts += collisions;
         }
     }
 
-    let subgrid_conflicts = fitness_subgrid(grid, 0 as usize);
 
+    let subgrid_conflicts = fitness_subgrid(grid, 0 as usize);
     total_conflicts + subgrid_conflicts
 }
 
-pub fn explore(item_index: usize, grid: &Grid, cache: &Cache, temperature: f64) -> (usize, Vec<u8>) {
+pub fn explore(item_index: usize, grid: &Grid, cache: &Cache, temperature: f64, neighbourhood_size: u8) -> (usize, Vec<u8>) {
     // Select current point
     let start = grid.matrix[item_index].to_vec();
     let current_solution_score: usize = evaluate_solution(&start, item_index, &grid);
     let mut current_solution: (usize, Vec<u8>) = (current_solution_score, start.clone());
     // Generate Neighborhood from current point
-    let neighborhood = generate_neighbourhood(start.clone(), item_index, 30, cache);
+    let neighborhood = generate_neighbourhood(start.clone(), item_index, neighbourhood_size, cache);
     let mut neighbor_solution_score: usize;
 
     for neighbor in neighborhood.iter() {
@@ -345,7 +367,7 @@ pub fn log_headline(headline: &str, grid: &Grid) {
     println!("{}{}\n{}", white_space.repeat(grid_log_half - headline_len), headline, grid);
 }
 
-pub fn anneal(mut grid: &mut Grid, temperature: f64, cooling_ratio: f64, total_attempts: u32) {
+pub fn anneal(mut grid: &mut Grid, temperature: f64, cooling_ratio: f64, total_attempts: u32, neighbourhood_size: u8) {
     // initialize temperature
     let mut init_grid: [[u8; 9]; 9] = [[0; 9]; 9];
 
@@ -384,7 +406,7 @@ pub fn anneal(mut grid: &mut Grid, temperature: f64, cooling_ratio: f64, total_a
 
         let random_row = rows.choose(&mut rand::thread_rng()).unwrap();
         let index = *random_row as usize;
-        let new = explore(index, grid, &cache, temperature);
+        let new = explore(index, grid, &cache, temperature, neighbourhood_size);
         assign_solution(new.1, index, grid);
         let conflicts = check_completeness(grid);
         log(conflicts);

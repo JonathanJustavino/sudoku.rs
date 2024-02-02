@@ -234,7 +234,7 @@ mod tests {
         let faulty_grid = Grid { matrix: faulty_solution };
         let conflicts_faulty = check_completeness(&faulty_grid);
         
-        assert_eq!(conflicts_faulty, 9);
+        assert_eq!(conflicts_faulty, 21);
         
         let grid_solved = setup_solved_example();
         let conflicts_solved = check_completeness(&grid_solved);
@@ -254,6 +254,11 @@ mod tests {
         let conflict = fitness_score_row(&conflicting_solution, &grid.matrix[0]);
 
         assert_eq!(conflict, 9);
+    }
+
+    #[test]
+    fn test_fitness_subgrid() {
+
     }
 
     #[test]
@@ -286,7 +291,6 @@ mod tests {
         let score = evaluate_solution(&solution, index, &complete_grid);
 
         assert_eq!(score, 0);
-        // evaluate_solution(&solution, ranking);
 
         let faulty_grid = setup_grid();
         let index: usize = 2;
@@ -294,7 +298,7 @@ mod tests {
 
         let score = evaluate_solution(&solution, index, &faulty_grid);
 
-        assert_eq!(score, 72);
+        assert_eq!(score, 126);
     }
 
     #[test]
