@@ -4,18 +4,7 @@ mod tests {
     use std::vec;
 
     use crate::annealing::{ 
-        gather_fixed_indices, 
-        gather_free_indices,
-        fitness_grid,
-        evaluate_solution,
-        fitness_score_row,
-        assign_solution,
-        generate_neighbourhood,
-        initial_assignment,
-        gather_value_pool,
-        generate_solution_fixed,
-        swap_values,
-        check_completeness,
+        assign_solution, check_completeness, evaluate_solution, fitness_grid, fitness_score_row, fitness_subgrid, gather_fixed_indices, gather_free_indices, gather_value_pool, generate_neighbourhood, generate_solution_fixed, initial_assignment, swap_values
     };
 
     use crate::annealing::Cache;
@@ -250,6 +239,11 @@ mod tests {
 
         assert_eq!(collisions, 0);
 
+        let partial_conflicts: Vec<u8> = vec![8, 7, 9, 5, 4, 1, 6, 2, 3];
+        let conflict = fitness_score_row(&partial_conflicts, &grid.matrix[0]);
+
+        assert_eq!(conflict, 7);
+
         let conflicting_solution = grid.matrix[0].to_vec();
         let conflict = fitness_score_row(&conflicting_solution, &grid.matrix[0]);
 
@@ -258,7 +252,45 @@ mod tests {
 
     #[test]
     fn test_fitness_subgrid() {
+        // let matrix:[[u8; 9]; 9] = [        // -------------------------
+        //     [7, 8, 9, 5, 4, 1, 6, 2, 3],   // | 7 8 9 | 5 4 1 | 6 2 3 |
+        //     [1, 4, 2, 6, 9, 3, 7, 8, 5],   // | 1 4 2 | 6 9 3 | 7 8 5 |
+        //     [6, 5, 3, 2, 8, 7, 4, 1, 9],   // | 6 5 3 | 2 8 7 | 4 1 9 |
+        //                                    // -------------------------
+        //     [9, 6, 4, 1, 2, 5, 3, 7, 8],   // | 9 6 4 | 1 2 5 | 3 7 8 |
+        //     [8, 2, 1, 7, 3, 9, 5, 4, 6],   // | 8 2 1 | 7 3 9 | 5 4 6 |
+        //     [3, 7, 5, 8, 6, 4, 2, 9, 1],   // | 3 7 5 | 8 6 4 | 2 9 1 |
+        //                                    // -------------------------
+        //     [2, 1, 7, 9, 5, 6, 8, 3, 4],   // | 2 1 7 | 9 5 6 | 8 3 4 |
+        //     [4, 9, 6, 3, 7, 8, 1, 5, 2],   // | 4 9 6 | 3 7 8 | 1 5 2 |
+        //     [5, 3, 8, 4, 1, 2, 9, 6, 7],   // | 5 3 8 | 4 1 2 | 9 6 7 |
+        // ];                                 // -------------------------
 
+        let complete_grid = setup_solved_example();
+        let index = 0;
+        let mut score = fitness_subgrid(&complete_grid, index);
+
+        assert_eq!(score, 0);
+
+        let faulty_solution: [[u8; 9]; 9] = [
+            [7, 5, 6, 4, 3, 9, 8, 1, 2],
+            [4, 9, 8, 1, 6, 2, 7, 5, 3],
+            [8, 1, 3, 5, 9, 4, 2, 6, 7],
+            [6, 7, 5, 3, 2, 1, 9, 8, 4],
+            [2, 4, 9, 8, 7, 6, 5, 3, 1],
+            [4, 9, 8, 1, 6, 2, 7, 5, 3],
+            [3, 6, 1, 9, 5, 7, 4, 2, 8],
+            [5, 8, 7, 2, 4, 3, 1, 9, 6],
+            [9, 2, 4, 6, 1, 8, 3, 7, 5]
+        ];
+
+        let error_scores: [usize; 9] = [1, 2, 2, 2, 3, 2, 0, 0, 0];
+
+        for (index, error_score) in error_scores.iter().enumerate() {
+            let faulty_grid = Grid{matrix: faulty_solution};
+            score = fitness_subgrid(&faulty_grid, index);
+            assert_eq!(score, *error_score);
+        }
     }
 
     #[test]
@@ -378,7 +410,7 @@ mod tests {
         ];                                //----------------------------------
 
         let grid: Grid = Grid::new(matrix);
-        let mut sub_grid_conflicts: usize = 0;
+        // let mut sub_grid_conflicts: usize = 0;
         let conflicts = check_completeness(&grid);
 
         assert_eq!(22, conflicts);
