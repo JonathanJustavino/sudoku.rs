@@ -1,10 +1,11 @@
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeSet;
+    use std::os::unix::raw::gid_t;
     use std::vec;
 
     use crate::annealing::{ 
-        assign_solution, check_completeness, evaluate_solution, fitness_grid, fitness_score_row, fitness_subgrid, gather_fixed_indices, gather_free_indices, gather_value_pool, generate_neighbourhood, generate_solution_fixed, initial_assignment, swap_values
+        assign_solution, check_completeness, evaluate_solution, fitness_grid, fitness_score_row, fitness_subgrid, fitness_subgrids, gather_fixed_indices, gather_free_indices, gather_value_pool, generate_neighbourhood, generate_solution_fixed, initial_assignment, swap_values
     };
     use crate::annealing::Cache;
     use crate::game_grid::Grid;
@@ -53,7 +54,7 @@ mod tests {
 
     fn setup_off_by_one() -> Grid {
         let matrix:[[u8; 9]; 9] = [        // -------------------------
-            [7, 8, 9, 5, 4, 1, 6, 2, 3],   // | 7 8 9 | 5 4 1 | 6 2 3 |
+            [8, 7, 9, 5, 4, 1, 6, 2, 3],   // | 7 8 9 | 5 4 1 | 6 2 3 |
             [1, 4, 2, 6, 9, 3, 7, 8, 5],   // | 1 4 2 | 6 9 3 | 7 8 5 |
             [6, 5, 3, 2, 8, 7, 4, 1, 9],   // | 6 5 3 | 2 8 7 | 4 1 9 |
                                            // -------------------------
@@ -155,7 +156,7 @@ mod tests {
 
     #[test]
     fn test_gather_value_pool() {
-        let (cache, grid) = setup_cache();
+        let (cache, _) = setup_cache();
         let mut sln = setup_empty_solution();
         let index: usize = 1;
         let pool = gather_value_pool(&mut sln, index, &cache);
@@ -314,11 +315,40 @@ mod tests {
     }
 
     #[test]
+    fn test_evaluate_single_subgrid() {
+        let grid = setup_solved_example();
+        let range: usize = 9;
+
+        for index in 0..range {
+            let single_subgrid_score = fitness_subgrid(&grid, index);
+            assert_eq!(single_subgrid_score, 0);
+        }
+
+        let faulty_grid = setup_grid();
+        for index in 0..range {
+            let single_subgrid_score = fitness_subgrid(&faulty_grid, index);
+            assert_eq!(single_subgrid_score, 6);
+        }
+    }
+
+    #[test]
+    fn test_evaluate_subgrids() {
+        let grid = setup_solved_example();
+
+        let total_subgrid_score = fitness_subgrids(&grid);
+        assert_eq!(total_subgrid_score, 0);
+
+        let faulty_grid = setup_grid();
+        let total_subgrid_score = fitness_subgrids(&faulty_grid);
+        assert_eq!(total_subgrid_score, 54);
+    }
+
+
+    #[test]
     fn test_evaluate_solution() {
         let complete_grid = setup_solved_example();
         let index: usize = 0;
         let solution = complete_grid.matrix[index].to_vec();
-
         let score = evaluate_solution(&solution, index, &complete_grid);
 
         assert_eq!(score, 0);
@@ -326,7 +356,6 @@ mod tests {
         let faulty_grid = setup_grid();
         let index: usize = 2;
         let solution = faulty_grid.matrix[index].to_vec();
-
         let score = evaluate_solution(&solution, index, &faulty_grid);
 
         assert_eq!(score, 126);
@@ -386,13 +415,17 @@ mod tests {
         let mut sln = grid.matrix[index].clone().to_vec();
         let reference = sln.clone();
         let elements = sln.len();
-        let mut matching = sln.iter().zip(&reference).filter(|&(a, b)| a == b).count();
 
+        let mut matching = sln.iter().zip(&reference).filter(|&(a, b)| a == b).count();
         assert_eq!(elements, matching);
+
         for _ in 0..100 {
             let vals = swap_values(&mut sln, index, &cache);
             println!("{} - {}", vals.0, vals.1);
-            let mut matching = sln.iter().zip(&reference).filter(|&(a, b)| a == b).count();
+            let matching = sln.iter().zip(&reference).filter(|&(a, b)| a == b).count();
+            let equal_index = vals.0 == vals.1;
+            assert!(!equal_index);
+            assert_ne!(elements, matching);
         }
 
         matching = sln.iter().zip(&reference).filter(|&(a, b)| a == b).count();
@@ -401,32 +434,18 @@ mod tests {
 
     #[test]
     fn test_complete() {
-        let matrix: [[u8;9];9] = [        //----------------------------------
-        [ 2, 8, 6, 5, 4, 3, 7, 9, 1 ],    //| 2, 8, 6, | 5, 4, 3, | 7, 9, 1, |
-        [ 1, 4, 2, 6, 9, 8, 5, 3, 7 ],    //| 1, 4, 2, | 6, 9, 8, | 5, 3, 7, |
-        [ 6, 7, 3, 2, 8, 5, 4, 1, 9 ],    //| 6, 7, 3, | 2, 8, 5, | 4, 1, 9, |
-                                          //----------------------------------
-        [ 5, 6, 4, 9, 2, 1, 3, 7, 8 ],    //| 5, 6, 4, | 9, 2, 1, | 3, 7, 8, |
-        [ 8, 3, 5, 7, 1, 9, 2, 4, 6 ],    //| 8, 3, 5, | 7, 1, 9, | 2, 4, 6, |
-        [ 3, 2, 1, 4, 6, 7, 9, 8, 5 ],    //| 3, 2, 1, | 4, 6, 7, | 9, 8, 5, |
-                                          //----------------------------------
-        [ 9, 1, 7, 3, 5, 6, 8, 2, 4 ],    //| 9, 1, 7, | 3, 5, 6, | 8, 2, 4, |
-        [ 7, 9, 8, 6, 3, 4, 1, 5, 2 ],    //| 7, 9, 8, | 6, 3, 4, | 1, 5, 2, |
-        [ 4, 5, 9, 8, 7, 2, 1, 6, 3 ],    //| 4, 5, 9, | 8, 7, 2, | 1, 6, 3, |
-        ];                                //----------------------------------
-
-        let grid: Grid = Grid::new(matrix);
-        // let mut sub_grid_conflicts: usize = 0;
-        let conflicts = check_completeness(&grid);
-
-        assert_eq!(22, conflicts);
-
-
 
         let grid = setup_solved_example();
-        let conflicts = check_completeness(&grid);
-        assert_eq!(0, conflicts);
-    }
+        let subgrid_scores = fitness_subgrids(&grid);
+        let score = check_completeness(&grid);
 
+        assert_eq!(0, score + subgrid_scores);
+
+        let off_by_one = setup_off_by_one();
+        let off_by_one_subgrid_scores = fitness_subgrids(&off_by_one);
+        let off_by_one_score = check_completeness(&off_by_one);
+
+        assert_eq!(2, off_by_one_score + off_by_one_subgrid_scores);
+    }
 
 }

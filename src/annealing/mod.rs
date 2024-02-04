@@ -1,7 +1,7 @@
 use core::fmt;
 use std::{collections::BTreeSet, io::stdout, iter::FromIterator, ops::Index, usize, vec};
 use rand::{Rng, seq::SliceRandom};
-use itertools::{izip};
+use itertools::{izip, Itertools};
 
 
 use crate::game_grid::Grid;
@@ -63,9 +63,8 @@ pub fn fitness_subgrid(grid: &Grid, index: usize) -> usize {
             subgrid.extend_from_slice(row_subgrid_1);
             subgrid.extend_from_slice(row_subgrid_2);
             subgrid.sort();
-            subgrid.dedup();
-            let sub_grid_collisions = 9 - subgrid.len();
-
+            let uniques = subgrid.iter().unique().count();
+            let sub_grid_collisions = 9 - uniques;
             duplicates += sub_grid_collisions;
             break;
         }
@@ -73,6 +72,15 @@ pub fn fitness_subgrid(grid: &Grid, index: usize) -> usize {
     }
 
     duplicates
+}
+
+pub fn fitness_subgrids(grid: &Grid) -> usize {
+    let mut total_duplicates: usize = 0;
+    let range: usize = 9;
+    for index in 0..range {
+        total_duplicates += fitness_subgrid(&grid, index);
+    }
+    total_duplicates
 }
 
 
@@ -107,7 +115,8 @@ pub fn fitness_grid<'a>(solution: &Vec<u8>, index: usize, grid: &'a Grid) -> Vec
 pub fn evaluate_solution(solution: &Vec<u8>, index: usize, grid: &Grid)  -> usize {
     let ranking = fitness_grid(solution, index, grid);
     let score: usize = ranking.iter().map(|(value, _) | *value ).sum();
-    let subgrid_score: usize = fitness_subgrid(grid, index);
+    // let subgrid_score: usize = fitness_subgrid(grid, index);
+    let subgrid_score = fitness_subgrids(&grid);
 
     score + subgrid_score
 }
@@ -206,16 +215,12 @@ pub fn swap_values(solution: &mut Vec<u8>, index: usize, cache: &Cache) -> (usiz
 
     pool.retain(|value|!fixed_indexes.contains(value));
     let mut second_pool = pool.clone();
-
-    // let mut choice = pool.choose_multiple(&mut rng, 2);
-
     let first = match pool.choose(&mut rng) {
         Some(value) => *value,
         None => 0,
     };
 
     second_pool.retain(|value| *value != first);
-
     let second = match second_pool.choose(&mut rng) {
         Some(value) => *value,
         None => 0,
@@ -224,10 +229,6 @@ pub fn swap_values(solution: &mut Vec<u8>, index: usize, cache: &Cache) -> (usiz
     if first == second {
         panic!("Identical indices -> no change");
     }
-
-    // if *first == 0 || *second == 0 {
-    //     return (0, 0)
-    // }
 
     let first_value = solution[first];
 
@@ -321,8 +322,7 @@ pub fn check_completeness(grid: &Grid) -> usize {
         }
     }
 
-
-    let subgrid_conflicts = fitness_subgrid(grid, 0 as usize);
+    let subgrid_conflicts = fitness_subgrids(grid);
     total_conflicts + subgrid_conflicts
 }
 
