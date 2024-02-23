@@ -41,6 +41,27 @@ fn setup_solved_cache() -> (Cache, Grid) {
 }
 
 
+fn setup_off_by_one() -> Grid {
+    let matrix:[[u8; 9]; 9] = [        // -------------------------
+        [0, 8, 9, 5, 4, 1, 6, 2, 0],   // | 7 8 9 | 5 4 1 | 6 2 3 |
+        [0, 4, 2, 6, 9, 3, 7, 8, 0],   // | 1 4 2 | 6 9 3 | 7 8 5 |
+        [6, 5, 3, 2, 8, 7, 4, 1, 9],   // | 6 5 3 | 2 8 7 | 4 1 9 |
+                                        // -------------------------
+        [9, 6, 4, 1, 2, 5, 3, 7, 8],   // | 9 6 4 | 1 2 5 | 3 7 8 |
+        [8, 2, 1, 7, 3, 9, 5, 4, 6],   // | 8 2 1 | 7 3 9 | 5 4 6 |
+        [3, 7, 5, 8, 6, 4, 2, 9, 1],   // | 3 7 5 | 8 6 4 | 2 9 1 |
+                                        // -------------------------
+        [2, 1, 7, 9, 5, 6, 8, 3, 4],   // | 2 1 7 | 9 5 6 | 8 3 4 |
+        [4, 9, 6, 3, 7, 8, 1, 5, 2],   // | 4 9 6 | 3 7 8 | 1 5 2 |
+        [5, 3, 8, 4, 1, 2, 9, 6, 7],   // | 5 3 8 | 4 1 2 | 9 6 7 |
+    ];                                 // -------------------------
+
+    let grid = Grid { matrix: matrix };
+
+    grid
+}
+
+
 fn setup_solved_example() -> Grid {
     let matrix:[[u8; 9]; 9] = [        // -------------------------
         [7, 8, 9, 5, 4, 1, 6, 2, 3],   // | 7 8 9 | 5 4 1 | 6 2 3 |
@@ -83,8 +104,22 @@ fn setup_missing_row() -> Grid {
 
 
 fn main() {
-    
-    let grid = setup_empty_example();
-    let temperature = 0.95;
+    // let mut grid = setup_empty_example();
+    // let mut grid = setup_missing_row();
+    let cooling_ratio = 0.98;
+    let total_runs = 8000;
+    let neighborhood_size = 100;
+
+    // annealing::anneal(&mut grid, cooling_ratio, total_runs, neighborhood_size);
+    // println!("solution so far");
+    // println!("{}", grid);
+    // println!("-------------------------");
+
+    let solved = setup_solved_example();
+    let index: usize = 0;
+    println!("{}", solved);
+
+    annealing::fitness_score_col(index, &solved.matrix);
+
 }
 

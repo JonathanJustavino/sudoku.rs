@@ -420,7 +420,7 @@ mod tests {
         assert_eq!(elements, matching);
 
         for _ in 0..100 {
-            let vals = swap_values(&mut sln, index, &cache);
+            let vals = swap_values(&mut sln, index, &cache).unwrap();
             println!("{} - {}", vals.0, vals.1);
             let matching = sln.iter().zip(&reference).filter(|&(a, b)| a == b).count();
             let equal_index = vals.0 == vals.1;

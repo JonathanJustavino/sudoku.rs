@@ -1,9 +1,10 @@
 use core::fmt;
 use std::{collections::BTreeSet, io::stdout, iter::FromIterator, ops::Index, usize, vec};
-use rand::{Rng, seq::SliceRandom};
+use rand::{distributions::Open01, seq::SliceRandom, Rng};
 use itertools::{izip, Itertools};
 
 
+use crate::utils;
 use crate::game_grid::Grid;
 
 
@@ -83,13 +84,21 @@ pub fn fitness_subgrids(grid: &Grid) -> usize {
     total_duplicates
 }
 
+pub fn fitness_score_col(column_index: usize, matrix: &[[u8;9];9]) {
+    let mut conflicts: usize = 0;
+    let collisions = 0;
 
-pub fn fitness_score_row(solution: &Vec<u8>, row: &[u8;9]) -> usize {
+    for (index, item) in matrix.iter().enumerate() {
+        println!("{}, {:?}", index, item[column_index]);
+    }
+}
+
+pub fn fitness_score_row(sample_row: &Vec<u8>, row: &[u8;9]) -> usize {
     // Yields amount of overlapping values of vector and slice
     let mut conflicts: usize = 0;
     let collisions = row.iter()
                                     .enumerate()
-                                    .filter(|(index, item)| **item == solution[*index] && **item > 0).count();
+                                    .filter(|(index, item)| **item == sample_row[*index] && **item > 0).count();
     conflicts += collisions;
 
     conflicts
@@ -208,26 +217,32 @@ pub fn generate_solution_fixed(row: &mut Vec<u8>, row_index: usize, cache: &Cach
 }
 
 
-pub fn swap_values(solution: &mut Vec<u8>, index: usize, cache: &Cache) -> (usize, usize) {
+pub fn swap_values(solution: &mut Vec<u8>, index: usize, cache: &Cache) -> Option<(usize, usize)> {
     let fixed_indexes = BTreeSet::from_iter(&cache.fixed_positions[index]);
+
+    if fixed_indexes.len() == 9 {
+        return None;
+    }
+
     let mut pool: Vec<usize> = vec![0, 1, 2, 3, 4, 5, 6, 7, 8];
-    let mut rng = rand::thread_rng();
+    let mut rng_first = rand::thread_rng();
+    let mut rng_second = rand::thread_rng();
 
     pool.retain(|value|!fixed_indexes.contains(value));
     let mut second_pool = pool.clone();
-    let first = match pool.choose(&mut rng) {
+    let first = match pool.choose(&mut rng_first) {
         Some(value) => *value,
         None => 0,
     };
 
     second_pool.retain(|value| *value != first);
-    let second = match second_pool.choose(&mut rng) {
+    let second = match second_pool.choose(&mut rng_second) {
         Some(value) => *value,
         None => 0,
     };
 
     if first == second {
-        panic!("Identical indices -> no change");
+        return None;
     }
 
     let first_value = solution[first];
@@ -235,7 +250,7 @@ pub fn swap_values(solution: &mut Vec<u8>, index: usize, cache: &Cache) -> (usiz
     solution[first] = solution[second];
     solution[second] = first_value;
 
-    (first, second)
+    Some((first, second))
 }
 
 
@@ -269,8 +284,11 @@ pub fn generate_neighbourhood(solution: Vec<u8>, row_index: usize, amount: u8, c
         //TODO: changing from solution fixed to swap
         // generate_solution_fixed(&mut neighbour, row_index, &cache);
 
-        swap_values(&mut neighbour, row_index, &cache);
-        neighbourhood.push(neighbour);
+        let indices = swap_values(&mut neighbour, row_index, &cache);
+        match indices {
+            Some((_, _)) => neighbourhood.push(neighbour),
+            None => continue
+        }
     }
 
     neighbourhood
@@ -282,6 +300,10 @@ pub fn assign_solution(solution: Vec<u8>, index: usize, grid: &mut Grid) {
         Err(_) => panic!("Could not convert solution vec to [ ]")
     };
     grid.matrix[index] = new;
+
+    // for (solution_index, value) in solution.iter().enumerate() {
+    //     grid.matrix[index][solution_index] = *value;
+    // }
 }
 
 
@@ -369,7 +391,29 @@ pub fn log_headline(headline: &str, grid: &Grid) {
     println!("{}{}\n{}", white_space.repeat(grid_log_half - headline_len), headline, grid);
 }
 
-pub fn anneal(mut grid: &mut Grid, temperature: f64, cooling_ratio: f64, total_attempts: u32, neighbourhood_size: u8) {
+pub fn calculate_temperature(matrix: [[u8;9];9], cache_grid: Grid) -> f64 {
+
+    let mut assign_grid = Grid::new(matrix.clone());
+    let assign_cache = Cache::new(&cache_grid.clone());
+    const LENGTH: usize = 10;
+    let mut scores = [0.0 as f64; LENGTH];
+
+    for index in 0..10 {
+        initial_assignment(&mut assign_grid, &assign_cache);
+        let subgrid_score = fitness_subgrids(&assign_grid);
+        let grid_score = check_completeness(&assign_grid);
+        scores[index] = subgrid_score as f64 + grid_score as f64;
+    }
+
+    utils::compute_standard_deviation(&scores).unwrap()
+}
+
+pub fn anneal(mut grid: &mut Grid, cooling_ratio: f64, _total_attempts: u32, neighbourhood_size: u8) {
+    /*TODO: 
+    1. calculate amount of tries per fixed sudoku
+    2. after the amount of tries test if temperature calculation is correct
+    */
+
     // initialize temperature
     let mut init_grid: [[u8; 9]; 9] = [[0; 9]; 9];
 
@@ -378,7 +422,22 @@ pub fn anneal(mut grid: &mut Grid, temperature: f64, cooling_ratio: f64, total_a
     log_headline("Initial Grid", grid);
 
     let cache = Cache::new(&cache_grid);
+    let total_attempts: usize = cache.fixed_positions.iter().map(Vec::len).sum();
     initial_assignment(&mut grid, &cache);
+
+    // calculate the std 
+    let temperature = calculate_temperature(grid.matrix, cache_grid);
+    // let mut assign_grid = Grid::new(grid.matrix.clone());
+    // let assign_cache = Cache::new(&cache_grid);
+    // const LENGTH: usize = 10;
+    // let mut scores = [0.0 as f64; LENGTH];
+    // for index in 0..10 {
+    //     initial_assignment(&mut assign_grid, &assign_cache);
+    //     let subgrid_score = fitness_subgrids(&assign_grid);
+    //     let grid_score = check_completeness(&assign_grid);
+    //     scores[index] = subgrid_score as f64 + grid_score as f64;
+    // }
+    // let mut temperature = utils::compute_standard_deviation(&scores).unwrap();
 
     log_headline("After initial assignment", grid);
 
@@ -392,19 +451,7 @@ pub fn anneal(mut grid: &mut Grid, temperature: f64, cooling_ratio: f64, total_a
     let mut current_temperature = temperature;
     let rows: Vec<u8> = vec![0, 1, 2, 3, 4, 5, 6 ,7, 8];
 
-    for run in 0..total_attempts {
-
-        // for index in 0..grid.matrix.len() {
-        //     let new = explore(index, grid, &cache, temperature);
-        //     assign_solution(new.1, index, grid);
-        //     let conflicts = check_completeness(&grid);
-
-        //     log(conflicts);
-        //     if conflicts == 0 {
-        //         println!("{}", grid);
-        //         return;
-        //     }
-        // }
+    for _ in 0..total_attempts {
 
         let random_row = rows.choose(&mut rand::thread_rng()).unwrap();
         let index = *random_row as usize;
@@ -422,9 +469,6 @@ pub fn anneal(mut grid: &mut Grid, temperature: f64, cooling_ratio: f64, total_a
 
     log_headline("Guess", grid);
     println!("end temperature {}", current_temperature);
-    // for row in init_grid {
-    //     println!("{:?}", row);
-    // }
 }
 
 
