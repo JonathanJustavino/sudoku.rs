@@ -1,9 +1,10 @@
 #[cfg(test)]
 mod tests {
-    use crate::utils::{self, cast_to_array};
-    use std::path::{Path, PathBuf};
+    use std::any::Any;
     use std::env::current_dir;
+    use std::path::{Path, PathBuf};
     use ndarray::{array, Array2, Axis};
+    use crate::utils::{self, cast_to_array};
 
     fn create_template() -> Array2<u8> {
        let data = array![
@@ -40,7 +41,6 @@ mod tests {
         let contents = utils::read_from_file(&sudoku_template_path_buf);
 
         assert!(Path::is_file(sudoku_template_path_buf.as_path()));
-        println!("{:?}", contents);
     }
 
     #[test]
@@ -49,15 +49,7 @@ mod tests {
         let data = create_template();
         let arr = cast_to_array(&sudoku_template_path_buf);
 
-        assert!(data == arr);
-    }
-
-    #[test]
-    fn test_template_correctness() {
-        let sudoku_template_path_buf = create_testing_path();
-        let data = create_template();
-        let arr = cast_to_array(&sudoku_template_path_buf);
-
+        assert!(data.type_id() == arr.type_id());
         assert!(data == arr);
     }
 
