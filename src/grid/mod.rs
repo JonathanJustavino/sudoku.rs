@@ -10,16 +10,29 @@ pub struct Grid {
 
 impl fmt::Display for Grid {
 
-    // fn fmt_1(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-    //     write!(formatter,"{}", self.matrix.to_string())
-    // }
-
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        for row in &self.matrix {
+        let col_separator = format!("{}", "| ");
+        let row_separator = format!("{}{}", "-".repeat(25), "\n");
+        let mut output = String::from("").to_owned();
 
+        for (row_index, row) in self.matrix.rows().into_iter().enumerate() {
+            if row_index % 3 == 0 {
+                output.push_str(&row_separator);
+            }
+
+            for (col_index, number) in row.iter().enumerate() {
+                if col_index % 3 == 0 {
+                    output.push_str(&col_separator);
+                }
+                output.push_str(&format!("{} ", &number.to_string()));
+            }
+
+            output.push_str("|\n");
         }
 
-        write!(formatter,"{}", self.matrix.to_string())
+        output.push_str(&row_separator);
+        let print = output.to_string();
+        write!(formatter, "{}", print)
     }
 }
 
@@ -44,6 +57,10 @@ impl Grid {
 }
 
 impl Grid {
+    pub fn determine_value_pool(&self, subgrid_index: usize) {
+
+    }
+
     pub fn collect_fixed_indices(&self, subgrid_index: usize) -> Vec<usize> {
         let (row, col) = self::Grid::get_indices(subgrid_index);
         let subgrid_slice = s![row..row + 3, col..col + 3];
