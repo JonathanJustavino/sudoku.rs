@@ -1,7 +1,6 @@
 use std::fmt;
 use crate::utils;
-use ndarray::{self, s, Array2, ArrayView2};
-use rand::{seq::{IteratorRandom, SliceRandom}, thread_rng};
+use ndarray::{self, s, Array2, Dim, SliceInfo, SliceInfoElem};
 
 
 #[derive(Clone, Debug)]
@@ -45,34 +44,50 @@ impl Grid {
 }
 
 impl Grid {
-
-    pub fn generate_neighbor() {
-        let mut rng = thread_rng();
-        let mut v = [1, 2, 3, 4, 5, 6, 7, 8, 9];
-        v.shuffle(&mut rng);
-    }
-
     pub fn collect_fixed_indices(&self, subgrid_index: usize) -> Vec<usize> {
         let (row, col) = self::Grid::get_indices(subgrid_index);
         let subgrid_slice = s![row..row + 3, col..col + 3];
 
+        let filter_non_zero = |(index, value): (usize, &u8)| -> Option<usize> {
+            if *value != 0 {
+                return Some(index)
+            } else {
+                return None
+            };
+        };
+
+        return self._filter_collect(subgrid_slice, filter_non_zero);
+    }
+
+    pub fn collect_free_indices(&self, subgrid_index: usize) -> Vec<usize> {
+        let (row, col) = self::Grid::get_indices(subgrid_index);
+        let subgrid_slice = s![row..row + 3, col..col + 3];
+
+        let filter_empty = |(index, value): (usize, &u8)| -> Option<usize> {
+            if *value == 0 {
+                return Some(index)
+            } else {
+                return None
+            };
+        };
+
+        return self._filter_collect(subgrid_slice, filter_empty);
+    }
+
+    fn _filter_collect<F>(&self, grid_slice: SliceInfo<[SliceInfoElem; 2], Dim<[usize; 2]>, Dim<[usize; 2]>>, func: F) -> Vec<usize>
+    where
+        F: Fn((usize, &u8)) -> Option<usize>,
+    {
         self.matrix
-            .slice(subgrid_slice)
+            .slice(grid_slice)
             .to_owned() // Ensure contiguity
             .into_shape((9,)) // Flatten into 1D
             .unwrap()
             .iter()
             .enumerate()
-            .filter_map(|(index, &value)| if value != 0 { Some(index) } else { None }) // Collect non-zero indices
+            .filter_map(func) // Collect non-zero indices
             .collect()
-    }
 
-    pub fn collect_free_indices(&self, subgrid_index: usize) -> Vec<usize> {
-        let mut free: Vec<usize> = vec![0, 1, 2, 3, 4,  5, 6, 7, 8];
-        let fixed = self.collect_fixed_indices(subgrid_index);
-        free.retain(|value| !fixed.contains(value));
-
-        free
     }
 }
 

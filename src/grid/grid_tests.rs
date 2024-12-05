@@ -45,20 +45,27 @@ mod tests {
     fn test_collect_fixed() {
         let data = create_template();
         let grid = Grid::new(data.clone());
-        let fixed = grid.collect_fixed_indices(0);
+        let mut collected = grid.collect_fixed_indices(0);
+        let mut fixed_values: Vec<usize> = vec![1, 2, 4, 5, 6, 7, 8];
 
-        println!("{:?}", data);
-        println!("{:?}", fixed);
+        fixed_values.sort();
+        collected.sort();
+
+        assert_eq!(fixed_values, collected);
+
     }
 
     #[test]
     fn test_collect_free() {
         let data = create_template();
         let grid = Grid::new(data.clone());
-        let free = grid.collect_free_indices(0);
+        let mut collected = grid.collect_free_indices(0);
+        let mut free_values: Vec<usize> = vec![0, 3];
 
-        println!("{:?}", free);
+        free_values.sort();
+        collected.sort();
 
+        assert_eq!(free_values, collected);
     }
 
 }
