@@ -10,22 +10,6 @@ mod tests {
         assert_eq!(result, 2);
     }
 
-    fn create_template() -> Array2<u8> {
-       let data = array![
-            [0, 8, 9, 5, 4, 1, 6, 2, 0],
-            [0, 4, 2, 6, 9, 3, 7, 8, 0],
-            [6, 5, 3, 2, 8, 7, 4, 1, 9],
-            [9, 6, 4, 1, 2, 5, 3, 7, 8],
-            [8, 2, 1, 7, 3, 9, 5, 4, 6],
-            [3, 7, 5, 8, 6, 4, 2, 9, 1],
-            [2, 1, 7, 9, 5, 6, 8, 3, 4],
-            [4, 9, 6, 3, 7, 8, 1, 5, 2],
-            [5, 3, 8, 4, 1, 2, 9, 6, 7],
-        ];
-
-        return data;
-    }
-
     // #[test]
     fn test_insert_subgrid() {
         let matrix = Array2::<u8>::zeros((9,9));
@@ -43,8 +27,7 @@ mod tests {
 
     #[test]
     fn test_collect_fixed() {
-        let data = create_template();
-        let grid = Grid::new(data.clone());
+        let grid = Grid::from_file("off_by_one.txt");
         let mut collected = grid.collect_fixed_indices(0);
         let mut fixed_values: Vec<usize> = vec![1, 2, 4, 5, 6, 7, 8];
 
@@ -52,13 +35,11 @@ mod tests {
         collected.sort();
 
         assert_eq!(fixed_values, collected);
-
     }
 
     #[test]
     fn test_collect_free() {
-        let data = create_template();
-        let grid = Grid::new(data.clone());
+        let grid = Grid::from_file("off_by_one.txt");
         let mut collected = grid.collect_free_indices(0);
         let mut free_values: Vec<usize> = vec![0, 3];
 

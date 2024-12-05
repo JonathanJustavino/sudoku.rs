@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{env::current_dir, fmt, path::{Path, PathBuf}};
 use crate::utils;
 use ndarray::{self, s, Array2, Dim, SliceInfo, SliceInfoElem};
 
@@ -38,22 +38,24 @@ impl fmt::Display for Grid {
 
 impl Grid {
     pub fn new(matrix: ndarray::Array2<u8>) -> Self {
-        Self {matrix: matrix}
+        return Self {matrix: matrix};
     }
 
-    pub fn get_indices(subgrid_index: usize) -> (usize, usize) {
-        match subgrid_index {
-            0 => (0, 0),
-            1 => (0, 3),
-            2 => (0, 6),
-            3 => (3, 0),
-            4 => (3, 3),
-            5 => (3, 6),
-            6 => (6, 0),
-            7 => (6, 3),
-            _other => (6, 6)
-        }
+    //FIXME: Currently only working when runnning cargo run in root dir, fix this (maybe env for basedir)
+    pub fn from_file(file_name: &str) -> Self {
+        let path_str = Path::new("static");
+        let cur_dir = current_dir();
+        let base_path = match cur_dir {
+            Ok(path_buf) => path_buf,
+            Err(error) => panic!("Error trying to read from file: {error:?}"),
+        };
+
+        let base_path = base_path.as_path();
+        let file_path = base_path.join(path_str).join(file_name);
+
+        return Self {matrix: utils::cast_to_array(&file_path)};
     }
+
 }
 
 impl Grid {
@@ -120,6 +122,22 @@ impl Grid {
 
         println!("{:?}", self);
     }
+
+    pub fn get_indices(subgrid_index: usize) -> (usize, usize) {
+        match subgrid_index {
+            0 => (0, 0),
+            1 => (0, 3),
+            2 => (0, 6),
+            3 => (3, 0),
+            4 => (3, 3),
+            5 => (3, 6),
+            6 => (6, 0),
+            7 => (6, 3),
+            _other => (6, 6)
+        }
+    }
+
+
 }
 
 
