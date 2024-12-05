@@ -1,6 +1,8 @@
-use std::{env::current_dir, fmt, path::{Path, PathBuf}};
+use std::{env::current_dir, fmt, iter::zip, path::{Path, PathBuf}};
 use crate::utils;
+use itertools::Itertools;
 use ndarray::{self, s, Array2, Dim, SliceInfo, SliceInfoElem};
+use rand::{seq::SliceRandom, thread_rng, Error};
 
 
 #[derive(Clone, Debug)]
@@ -59,8 +61,14 @@ impl Grid {
 }
 
 impl Grid {
-    pub fn determine_value_pool(&self, subgrid_index: usize) {
+    pub fn determine_value_pool(&self, subgrid_index: usize) -> Vec<u8> {
+        let (row, col) = self::Grid::get_indices(subgrid_index);
+        let grid_slice = s![row..row+3, col..col+3];
+        let slice = self.matrix.slice(grid_slice).to_owned().into_shape(9).unwrap();
+        let mut pool: Vec<u8> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9];
 
+        pool.retain(|item| !slice.to_owned().into_iter().contains(item));
+        return pool;
     }
 
     pub fn collect_fixed_indices(&self, subgrid_index: usize) -> Vec<usize> {
@@ -106,12 +114,51 @@ impl Grid {
             .enumerate()
             .filter_map(func) // Collect non-zero indices
             .collect()
-
     }
 }
 
 
 impl Grid {
+
+    pub fn initialize(&mut self) {
+        for index in 0..9 {
+            self._initialize_subgrid(index);
+        }
+    }
+
+
+    fn _initialize_subgrid(&mut self, subgrid_index: usize) {
+        let (row, col) = self::Grid::get_indices(subgrid_index);
+        let subgrid_slice = s![row..row + 3, col..col + 3];
+        let free_positions = self.collect_free_indices(subgrid_index);
+        let mut pool = self.determine_value_pool(subgrid_index);
+
+        let mut grid_slice = self.matrix.slice_mut(subgrid_slice);
+        let mut rng = thread_rng();
+        let max_first_row_idx: usize = 2;
+        let max_second_row_idx: usize = 5;
+
+        let map_to = | pos | -> (usize, usize) {
+            if pos > max_second_row_idx {
+                return (2, pos % 3)
+            }
+            if pos > max_first_row_idx {
+                return (1, pos % 3)
+            }
+            return (0, pos % 3)
+        };
+
+        pool.shuffle(&mut rng);
+
+        for (pos, value) in zip(free_positions, pool) {
+            let (x, y) = map_to(pos);
+            grid_slice[[x, y]] = value;
+        }
+
+        let sub = grid_slice.into_owned();
+
+        self.insert_subgrid(&sub, subgrid_index);
+    }
 
     pub fn insert_subgrid(&mut self, subgrid: &Array2::<u8>, index: usize) {
         let valid_dim: (usize, usize) = (3, 3);
@@ -119,8 +166,6 @@ impl Grid {
 
         let (row_start, col_start) = self::Grid::get_indices(index);
         self.matrix.slice_mut(s![row_start..row_start + 3, col_start..col_start + 3]).assign(subgrid);
-
-        println!("{:?}", self);
     }
 
     pub fn get_indices(subgrid_index: usize) -> (usize, usize) {
@@ -136,13 +181,10 @@ impl Grid {
             _other => (6, 6)
         }
     }
-
-
 }
 
 
 impl Grid {
-
     pub fn count_missing(&self, bitmask: u8) -> u8 {
         let mut zeros: u8 = 0;
         for position in 0..9 {
@@ -183,7 +225,6 @@ impl Grid {
     pub fn check_subgrid(&self, index: usize) -> usize {
         0
     }
-
 }
 
 #[cfg(test)]
