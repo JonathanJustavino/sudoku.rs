@@ -1,152 +1,39 @@
 use core::fmt;
-use std::{collections::BTreeSet, io::stdout, iter::FromIterator, ops::Index, usize, vec};
+use itertools::{izip, Itertools};
 use ndarray::{s, Array2, Dim, SliceInfo, SliceInfoElem};
 use rand::{distributions::Open01, seq::SliceRandom, Rng};
-use itertools::{izip, Itertools};
+use std::{collections::BTreeSet, io::stdout, iter::FromIterator, ops::Index, usize, vec};
 
-
-use crate::utils;
-// use crate::game_grid::Grid;
+use crate::{grid, utils};
 use crate::grid::Grid;
 
 
-pub struct Cache {
-    pub fixed_subgrid_positions: Vec<Vec<usize>>,
+pub fn fitness_col(grid: &Grid, index: usize) -> usize {
+    grid.check_col(index)
 }
 
-impl Cache {
-    pub fn new(grid: &Grid) -> Self {
-        let mut fixed_positions: Vec<Vec<usize>> = vec![vec![]; 9];
-
-        for subgrid_index in 0..9 {
-            // Cache::collect_fixed_indices(grid.matrix, subgrid_index);
-        }
-
-        //TODO: change MO of iteration
-        // for (index, _) in grid.matrix.iter().enumerate() {
-        //     let fixed = grid.collect_fixed_indices(index);
-        //     fixed_positions[index].append(&mut fixed.clone());
-        // }
-
-        Self { fixed_subgrid_positions: fixed_positions }
-    }
-
-    // pub fn collect_fixed_indices(matrix: Array2<u8>, subgrid_index: usize) -> Vec<usize> {
-    //     let (row, col) = self::Grid::get_indices(subgrid_index);
-    //     let subgrid_slice = s![row..row + 3, col..col + 3];
-
-    //     let filter_non_zero = |(index, value): (usize, &u8)| -> Option<usize> {
-    //         if *value != 0 {
-    //             return Some(index)
-    //         } else {
-    //             return None
-    //         };
-    //     };
-
-    //     return self._filter_collect(matrix, subgrid_slice, filter_non_zero);
-    // }
-
-    // fn _filter_collect<F>(&self, matrix: Array2<u8>, grid_slice: SliceInfo<[SliceInfoElem; 2], Dim<[usize; 2]>, Dim<[usize; 2]>>, func: F) -> Vec<usize>
-    // where
-    //     F: Fn((usize, &u8)) -> Option<usize>,
-    // {
-    //     matrix
-    //         .slice(grid_slice)
-    //         .to_owned() // Ensure contiguity
-    //         .into_shape((9,)) // Flatten into 1D
-    //         .unwrap()
-    //         .iter()
-    //         .enumerate()
-    //         .filter_map(func) // Collect non-zero indices
-    //         .collect()
-    // }
-
-}
-
-impl fmt::Display for Cache {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut output = String::from("Cache\n").to_owned();
-
-        for (index, row) in self.fixed_subgrid_positions.iter().enumerate() {
-            output.push_str(&format!("row {} -> [", index + 1));
-            let mut row_iter = row.iter().peekable();
-            while let Some(col_value) = row_iter.next() {
-                if row_iter.peek().is_none() {
-                    output.push_str(&format!(" {} ]\n", *col_value));
-                    continue;
-                }
-                output.push_str(&format!(" {},", *col_value));
-            }
-        }
-
-        let print = output.to_string();
-        write!(f, "{}", print)
-    }
-}
-
-pub fn fitness_col() {
-
-}
-
-pub fn fitness_row(grid: &Grid) {
-
+pub fn fitness_row(grid: &Grid, index: usize) -> usize {
+    grid.check_row(index)
 }
 
 
-// pub fn fitness_subgrid(grid: &Grid, index: usize) -> usize {
-//     let stride = 3;
-//     let mut subgrid;
-//     let mut duplicates: usize = 0;
-//     let column_offset = index % 3;
-//     let row_offset: usize = match index {
-//         0 ..= 2 => 0,
-//         3 ..= 5 => 1,
-//         _ => 2,
-//     };
-
-//     for row_triple in grid.matrix.windows(stride).step_by(stride).skip(row_offset) {
-//         for (row_subgrid_0, row_subgrid_1, row_subgrid_2) in izip!(row_triple[0].windows(3), row_triple[1].windows(3), row_triple[2].windows(3)).step_by(3).skip(column_offset){
-//             subgrid = vec![];
-//             subgrid.extend_from_slice(row_subgrid_0);
-//             subgrid.extend_from_slice(row_subgrid_1);
-//             subgrid.extend_from_slice(row_subgrid_2);
-//             subgrid.sort();
-//             let uniques = subgrid.iter().unique().count();
-//             let sub_grid_collisions = 9 - uniques;
-//             duplicates += sub_grid_collisions;
-//             break;
-//         }
-//         break;
-//     }
-
-//     duplicates
-// }
-
-// pub fn fitness_subgrids(grid: &Grid) -> usize {
-//     let mut total_duplicates: usize = 0;
-//     let range: usize = 9;
-//     for index in 0..range {
-//         total_duplicates += fitness_subgrid(&grid, index);
-//     }
-//     total_duplicates
-// }
-
-pub fn fitness_score_col(column_index: usize, matrix: &[[u8;9];9]) {
+pub fn fitness_score_cols(grid: &Grid) -> usize {
     let mut conflicts: usize = 0;
     let collisions = 0;
 
-    for (index, item) in matrix.iter().enumerate() {
-        println!("{}, {:?}", index, item[column_index]);
+    for index in 0..9 {
+        conflicts += fitness_col(grid, index);
     }
+
+    conflicts
 }
 
-pub fn fitness_score_row(sample_row: &Vec<u8>, row: &[u8;9]) -> usize {
-    // Yields amount of overlapping values of vector and slice
+pub fn fitness_score_rows(grid: &Grid) -> usize {
     let mut conflicts: usize = 0;
-    let collisions = row.iter()
-                                    .enumerate()
-                                    .filter(|(index, item)| **item == sample_row[*index] && **item > 0).count();
-    conflicts += collisions;
+
+    for index in 0..9 {
+        conflicts += fitness_row(grid, index);
+    }
 
     conflicts
 }
@@ -196,58 +83,6 @@ pub fn accept<'a>(new: (usize, Vec<u8>), old: (usize, Vec<u8>), current_temperat
 
     old
 }
-
-
-// pub fn initial_assignment(grid: &mut Grid, cache: &Cache) {
-//     let mut matrix = grid.matrix;
-
-//     for (index, row) in matrix.iter_mut().enumerate() {
-//         let mut current_row = row.to_vec();
-//         generate_solution_fixed(&mut current_row, index, cache);
-//         assign_solution(current_row, index, grid);
-//     }
-// }
-
-
-pub fn gather_fixed_indices(row: &Vec<u8>) -> Vec<usize> {
-    let fixed_indices: Vec<usize> = row.iter()
-                                        .enumerate()
-                                        .filter(|(_, &value)| value != 0)
-                                        .map(|(i, _)| i)
-                                        .collect();
-    fixed_indices
-}
-
-
-// pub fn gather_free_indices(row_index: usize, cache: &Cache) -> Vec<usize> {
-//     let mut free_positions: Vec<usize> = vec![0, 1, 2, 3, 4, 5, 6, 7, 8];
-//     let mut fixed_positions = cache.fixed_positions[row_index].clone();
-
-//     fixed_positions.copy_from_slice(cache.fixed_positions[row_index].as_slice());
-//     let fixed_positions = BTreeSet::from_iter(fixed_positions);
-//     free_positions.retain(|value| !fixed_positions.contains(value));
-//     let free_values = free_positions.iter()
-//                                         .map(|value| *value as usize)
-//                                         .collect();
-
-//     free_values
-// }
-
-
-// pub fn gather_value_pool(row: &Vec<u8>, index: usize, cache: &Cache) -> Vec<u8> {
-//     let mut fixed_values = vec![];
-
-//     for idx in &cache.fixed_positions[index] {
-//         fixed_values.push(row[*idx])
-//     }
-
-//     let fixed_values = BTreeSet::from_iter(fixed_values);
-
-//     let mut free_values: Vec<u8> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9];
-//     free_values.retain(|value| !fixed_values.contains(value));
-
-//     free_values
-// }
 
 
 // pub fn generate_solution_fixed(row: &mut Vec<u8>, row_index: usize, cache: &Cache){
@@ -519,5 +354,5 @@ pub fn log_headline(headline: &str, grid: &Grid) {
 // }
 
 
-// #[cfg(test)]
-// mod annealing_tests;
+#[cfg(test)]
+mod annealing_tests;

@@ -10,7 +10,7 @@ mod tests {
         assert_eq!(result, 2);
     }
 
-    // #[test]
+    #[test]
     fn test_insert_subgrid() {
         let matrix = Array2::<u8>::zeros((9,9));
 

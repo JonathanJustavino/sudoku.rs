@@ -100,7 +100,7 @@ impl Grid {
 impl Grid {
     pub fn determine_value_pool(&self, subgrid_index: usize) -> Vec<u8> {
         let (row, col) = self::Grid::get_indices(subgrid_index);
-        let grid_slice = s![row..row+3, col..col+3];
+        let grid_slice = s![row..row + 3, col..col + 3];
         let slice = self.matrix.slice(grid_slice).to_owned().into_shape(9).unwrap();
         let mut pool: Vec<u8> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9];
 
