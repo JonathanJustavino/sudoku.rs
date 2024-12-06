@@ -19,7 +19,7 @@ mod tests {
         for i in 0..9 {
             let mut sub_grid = Array2::<u8>::ones((3, 3));
             sub_grid += i;
-            grid.insert_subgrid(&sub_grid, i as usize);
+            grid.set_subgrid(&sub_grid, i as usize);
         }
 
         println!("{}", grid);
@@ -28,7 +28,7 @@ mod tests {
     #[test]
     fn test_collect_fixed() {
         let grid = Grid::from_file("off_by_one.txt");
-        let mut collected = grid.collect_fixed_indices(0);
+        let mut collected = Grid::collect_fixed_indices(&grid.matrix, 0);
         let mut fixed_values: Vec<usize> = vec![1, 2, 4, 5, 6, 7, 8];
 
         fixed_values.sort();

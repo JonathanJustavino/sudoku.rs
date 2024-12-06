@@ -1,14 +1,53 @@
 use std::{fmt, iter::zip, path::Path};
 use crate::utils;
 use itertools::Itertools;
-use ndarray::{self, s, Array2, Dim, SliceInfo, SliceInfoElem};
+use ndarray::{self, s, Array1, Array2, ArrayBase, Dim, SliceInfo, SliceInfoElem, ViewRepr, Ix};
 use rand::{seq::SliceRandom, thread_rng};
 
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Grid {
-    pub matrix: ndarray::Array2<u8>
+    pub matrix: ndarray::Array2<u8>,
+    pub fixed_subgrid_positions: Vec<Vec<usize>>,
 }
+
+impl fmt::Debug for Grid {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        let col_separator = format!("{}", "| ");
+        let row_separator = format!("{}{}", "-".repeat(25), "\n");
+        let mut output = String::from("").to_owned();
+
+        for (row_index, row) in self.matrix.rows().into_iter().enumerate() {
+            if row_index % 3 == 0 {
+                output.push_str(&row_separator);
+            }
+
+            for (col_index, number) in row.iter().enumerate() {
+                if col_index % 3 == 0 {
+                    output.push_str(&col_separator);
+                }
+                output.push_str(&format!("{} ", &number.to_string()));
+            }
+
+            output.push_str("|\n");
+        }
+
+        output.push_str(&row_separator);
+        output.push_str("\n");
+
+        let mut cache_output = String::from("Fixed Positions:\n").to_owned();
+        for (index, row) in self.fixed_subgrid_positions.iter().enumerate() {
+            let subgrid = format!("  Subgrid-{index}: {:?}\n", row);
+            cache_output.push_str(&subgrid);
+        }
+
+        output.push_str(&cache_output);
+        let print = output.to_string();
+
+        write!(formatter, "{}", print)
+    }
+}
+
 
 impl fmt::Display for Grid {
 
@@ -40,18 +79,22 @@ impl fmt::Display for Grid {
 
 impl Grid {
     pub fn new(matrix: ndarray::Array2<u8>) -> Self {
-        return Self {matrix: matrix};
+        return Self {matrix: matrix, fixed_subgrid_positions: vec![vec![]; 9]};
     }
 
-    //FIXME: Currently only working when runnning cargo run in root dir, fix this (maybe env for basedir)
     pub fn from_file(file_name: &str) -> Self {
         let base_path_string = std::env::var("TEMPLATE_DIR").expect("Could not load TEMPLATE_DIR!");
         let template_path = Path::new(&base_path_string);
         let file_path = template_path.join(template_path).join(file_name);
+        let matrix = utils::cast_to_array(&file_path);
+        let mut fixed_positions: Vec<Vec<usize>> = vec![vec![]; 9];
 
-        return Self {matrix: utils::cast_to_array(&file_path)};
+        for index in 0..9 {
+            fixed_positions[index] = Grid::collect_fixed_indices(&matrix, index);
+        }
+
+        return Self {matrix: utils::cast_to_array(&file_path), fixed_subgrid_positions: fixed_positions};
     }
-
 }
 
 impl Grid {
@@ -65,7 +108,7 @@ impl Grid {
         return pool;
     }
 
-    pub fn collect_fixed_indices(&self, subgrid_index: usize) -> Vec<usize> {
+    pub fn collect_fixed_indices(matrix: &Array2<u8>, subgrid_index: usize) -> Vec<usize> {
         let (row, col) = self::Grid::get_indices(subgrid_index);
         let subgrid_slice = s![row..row + 3, col..col + 3];
 
@@ -77,7 +120,7 @@ impl Grid {
             };
         };
 
-        return self._filter_collect(subgrid_slice, filter_non_zero);
+        self::Grid::_filter_collect(matrix, subgrid_slice, filter_non_zero)
     }
 
     pub fn collect_free_indices(&self, subgrid_index: usize) -> Vec<usize> {
@@ -92,14 +135,14 @@ impl Grid {
             };
         };
 
-        return self._filter_collect(subgrid_slice, filter_empty);
+        self::Grid::_filter_collect(&self.matrix, subgrid_slice, filter_empty)
     }
 
-    fn _filter_collect<F>(&self, grid_slice: SliceInfo<[SliceInfoElem; 2], Dim<[usize; 2]>, Dim<[usize; 2]>>, func: F) -> Vec<usize>
+    fn _filter_collect<F>(matrix: &Array2<u8>, grid_slice: SliceInfo<[SliceInfoElem; 2], Dim<[usize; 2]>, Dim<[usize; 2]>>, func: F) -> Vec<usize>
     where
         F: Fn((usize, &u8)) -> Option<usize>,
     {
-        self.matrix
+        matrix
             .slice(grid_slice)
             .to_owned() // Ensure contiguity
             .into_shape((9,)) // Flatten into 1D
@@ -120,6 +163,19 @@ impl Grid {
         }
     }
 
+    pub fn get_subgrid(&self, index: usize) -> ArrayBase<ViewRepr<&u8>, Dim<[Ix; 2]>> {
+        let (row, col) = self::Grid::get_indices(index);
+        let subgrid_slice = s![row..row + 3, col..col + 3];
+
+        self.matrix.slice(subgrid_slice)
+    }
+
+    pub fn get_subgrid_mut(&mut self, index: usize) -> ArrayBase<ViewRepr<&mut u8>, Dim<[Ix; 2]>> {
+        let (row, col) = self::Grid::get_indices(index);
+        let subgrid_slice = s![row..row + 3, col..col + 3];
+
+        self.matrix.slice_mut(subgrid_slice)
+    }
 
     fn _initialize_subgrid(&mut self, subgrid_index: usize) {
         let (row, col) = self::Grid::get_indices(subgrid_index);
@@ -151,10 +207,10 @@ impl Grid {
 
         let sub = grid_slice.into_owned();
 
-        self.insert_subgrid(&sub, subgrid_index);
+        self.set_subgrid(&sub, subgrid_index);
     }
 
-    pub fn insert_subgrid(&mut self, subgrid: &Array2::<u8>, index: usize) {
+    pub fn set_subgrid(&mut self, subgrid: &Array2::<u8>, index: usize) {
         let valid_dim: (usize, usize) = (3, 3);
         assert_eq!(subgrid.dim(), valid_dim, "Wrong dimensions of subgrid");
 
@@ -190,31 +246,35 @@ impl Grid {
         return zeros;
     }
 
-    pub fn check_row(&self, index: usize) -> usize {
-        let mut bitmask: u8 = 0;
-        let row = self.matrix.row(index);
+    fn _count_duplicates(&self, array: &Array1<u8>) -> usize {
+        let mut seen = [false; 9]; // Fixed-size array to track if a value has been seen
+        let mut duplicates = 0;
 
-        //TODO: AND every number to create bitmask
-        // 1 := number missing
-        for elem in row.iter() {
-            bitmask = bitmask & (*elem - 1);
+        for &value in array.iter() {
+            let zero_based_value = value - 1;
+            if seen[zero_based_value as usize] {
+                duplicates += 1;
+            } else {
+                seen[zero_based_value as usize] = true;
+            }
         }
-        // at the end check for amounts of ones in total number
-        // let count = bitmask.iter().rev().tak
 
-        return 0;
-
-
-        // return total_elements - unique_elements.len();
+        duplicates
     }
 
-    // pub fn check_col(&self, index: usize) -> usize {
-    //     let total_elements = 9;
-    //     let row = self.matrix.column(index);
-    //     let unique_elements: Vec<&u8> = row.iter().unique().collect();
+    pub fn check_row(&self, index: usize) -> usize {
+        let row = self.matrix.row(index).to_owned();
+        let collisions = self._count_duplicates(&row);
 
-    //     return total_elements - unique_elements.len();
-    // }
+        return collisions;
+    }
+
+    pub fn check_col(&self, index: usize) -> usize {
+        let col = self.matrix.column(index).to_owned();
+        let collisions = self._count_duplicates(&col);
+
+        return collisions;
+    }
 
     pub fn check_subgrid(&self, index: usize) -> usize {
         0
