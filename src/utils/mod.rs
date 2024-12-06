@@ -2,6 +2,7 @@ use std::{fs, path::PathBuf};
 use std::hash::Hash;
 use std::collections::HashSet;
 use ndarray::Array2;
+use dotenv;
 
 
 pub fn has_unique_elements<T>(iter: T) -> bool

@@ -1,8 +1,8 @@
-use std::{env::current_dir, fmt, iter::zip, path::{Path, PathBuf}};
+use std::{fmt, iter::zip, path::Path};
 use crate::utils;
 use itertools::Itertools;
 use ndarray::{self, s, Array2, Dim, SliceInfo, SliceInfoElem};
-use rand::{seq::SliceRandom, thread_rng, Error};
+use rand::{seq::SliceRandom, thread_rng};
 
 
 #[derive(Clone, Debug)]
@@ -45,15 +45,9 @@ impl Grid {
 
     //FIXME: Currently only working when runnning cargo run in root dir, fix this (maybe env for basedir)
     pub fn from_file(file_name: &str) -> Self {
-        let path_str = Path::new("static");
-        let cur_dir = current_dir();
-        let base_path = match cur_dir {
-            Ok(path_buf) => path_buf,
-            Err(error) => panic!("Error trying to read from file: {error:?}"),
-        };
-
-        let base_path = base_path.as_path();
-        let file_path = base_path.join(path_str).join(file_name);
+        let base_path_string = std::env::var("TEMPLATE_DIR").expect("Could not load TEMPLATE_DIR!");
+        let template_path = Path::new(&base_path_string);
+        let file_path = template_path.join(template_path).join(file_name);
 
         return Self {matrix: utils::cast_to_array(&file_path)};
     }
