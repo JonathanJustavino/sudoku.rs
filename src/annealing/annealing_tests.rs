@@ -7,7 +7,7 @@ mod tests {
     //     assign_solution, check_completeness, evaluate_solution, fitness_grid, fitness_score_row, fitness_subgrid, fitness_subgrids, gather_fixed_indices, gather_free_indices, gather_value_pool, generate_neighbourhood, generate_solution_fixed, initial_assignment, swap_values
     // };
 
-    use crate::grid::Grid;
+    use crate::{annealing, grid::Grid};
 
 
     fn setup_solved_cache() -> Grid {
@@ -55,6 +55,19 @@ mod tests {
         println!("{}", grid);
         assert_eq!(pool, ground_truth);
     }
+
+    #[test]
+    fn test_map_to_grid() {
+        let coordinates: Vec<usize> = (0..9).collect();
+        let grid_coords: [(usize, usize); 9] = [(0, 0), (0, 1), (0, 2),
+                                                (1, 0), (1, 1), (1, 2),
+                                                (2, 0), (2, 1), (2, 2)];
+        for index in coordinates {
+            let mapping = Grid::map_to_grid(index);
+            assert_eq!(grid_coords[index], mapping);
+        }
+    }
+
 
     // #[test]
     // fn test_generate_solution_fixed(){

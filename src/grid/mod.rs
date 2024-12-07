@@ -1,7 +1,7 @@
 use std::{fmt, iter::zip, path::Path};
-use crate::utils;
+use crate::{annealing, utils};
 use itertools::Itertools;
-use ndarray::{self, s, Array1, Array2, ArrayBase, Dim, SliceInfo, SliceInfoElem, ViewRepr, Ix};
+use ndarray::{self, s, Array1, Array2, ArrayBase, ArrayView2, Dim, Ix, SliceInfo, SliceInfoElem, ViewRepr};
 use rand::{seq::SliceRandom, thread_rng};
 
 
@@ -101,7 +101,8 @@ impl Grid {
     pub fn determine_value_pool(&self, subgrid_index: usize) -> Vec<u8> {
         let (row, col) = self::Grid::get_indices(subgrid_index);
         let grid_slice = s![row..row + 3, col..col + 3];
-        let slice = self.matrix.slice(grid_slice).to_owned().into_shape(9).unwrap();
+        // let slice = self.matrix.slice(grid_slice).to_owned().into_shape(9).unwrap();
+        let slice = self.matrix.slice(grid_slice).to_owned();
         let mut pool: Vec<u8> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9];
 
         pool.retain(|item| !slice.to_owned().into_iter().contains(item));
@@ -120,7 +121,8 @@ impl Grid {
             };
         };
 
-        self::Grid::_filter_collect(matrix, subgrid_slice, filter_non_zero)
+        let indices = self::Grid::_filter_collect(matrix, subgrid_slice, filter_non_zero);
+        return  indices.clone();
     }
 
     pub fn collect_free_indices(&self, subgrid_index: usize) -> Vec<usize> {
@@ -135,7 +137,8 @@ impl Grid {
             };
         };
 
-        self::Grid::_filter_collect(&self.matrix, subgrid_slice, filter_empty)
+        let indices = self::Grid::_filter_collect(&self.matrix, subgrid_slice, filter_empty);
+        return indices.clone();
     }
 
     fn _filter_collect<F>(matrix: &Array2<u8>, grid_slice: SliceInfo<[SliceInfoElem; 2], Dim<[usize; 2]>, Dim<[usize; 2]>>, func: F) -> Vec<usize>
@@ -145,8 +148,8 @@ impl Grid {
         matrix
             .slice(grid_slice)
             .to_owned() // Ensure contiguity
-            .into_shape((9,)) // Flatten into 1D
-            .unwrap()
+            // .into_shape((9,)) // Flatten into 1D
+            // .unwrap()
             .iter()
             .enumerate()
             .filter_map(func) // Collect non-zero indices
@@ -163,13 +166,15 @@ impl Grid {
         }
     }
 
-    pub fn get_subgrid(&self, index: usize) -> ArrayBase<ViewRepr<&u8>, Dim<[Ix; 2]>> {
+    //TODO: Reimplement with the function `exact_chunks`
+    pub fn get_subgrid(&self, index: usize) -> ArrayView2<u8> {
         let (row, col) = self::Grid::get_indices(index);
         let subgrid_slice = s![row..row + 3, col..col + 3];
 
         self.matrix.slice(subgrid_slice)
     }
 
+    //TODO: Reimplement with the function `exact_chunks`
     pub fn get_subgrid_mut(&mut self, index: usize) -> ArrayBase<ViewRepr<&mut u8>, Dim<[Ix; 2]>> {
         let (row, col) = self::Grid::get_indices(index);
         let subgrid_slice = s![row..row + 3, col..col + 3];
@@ -205,7 +210,7 @@ impl Grid {
             grid_slice[[x, y]] = value;
         }
 
-        let sub = grid_slice.into_owned();
+        let sub: Array2<u8> = grid_slice.into_owned();
 
         self.set_subgrid(&sub, subgrid_index);
     }
@@ -218,18 +223,22 @@ impl Grid {
         self.matrix.slice_mut(s![row_start..row_start + 3, col_start..col_start + 3]).assign(subgrid);
     }
 
+    pub fn map_to_subgrid(index: usize) -> (usize, usize) {
+        // Same but
+        let (x, y) = self::Grid::map_to_grid(index);
+        return (x * 3, y * 3);
+    }
+
+    pub fn map_to_grid(index: usize) -> (usize, usize) {
+        // Floor x to map in range [0..2] per row
+        // Mode y to map in ragne [0..2] per column
+        return (index / 3, index % 3)
+    }
+
+
     pub fn get_indices(subgrid_index: usize) -> (usize, usize) {
-        match subgrid_index {
-            0 => (0, 0),
-            1 => (0, 3),
-            2 => (0, 6),
-            3 => (3, 0),
-            4 => (3, 3),
-            5 => (3, 6),
-            6 => (6, 0),
-            7 => (6, 3),
-            _other => (6, 6)
-        }
+        let tuple = self::Grid::map_to_subgrid(subgrid_index);
+        return tuple
     }
 }
 

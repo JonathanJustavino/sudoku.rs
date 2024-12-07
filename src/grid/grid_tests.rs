@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod tests {
     use crate::grid::{Grid};
-    use crate::utils;
     use ndarray::{self, Array2, array};
+    use crate::utils;
 
     #[test]
     fn it_works() {
@@ -12,12 +12,12 @@ mod tests {
 
     #[test]
     fn test_insert_subgrid() {
-        let matrix = Array2::<u8>::zeros((9,9));
+        let matrix: Array2<u8> = Array2::<u8>::zeros((9,9));
 
         let mut grid = Grid::new(matrix);
 
         for i in 0..9 {
-            let mut sub_grid = Array2::<u8>::ones((3, 3));
+            let mut sub_grid: Array2<u8> = Array2::<u8>::ones((3, 3));
             sub_grid += i;
             grid.set_subgrid(&sub_grid, i as usize);
         }
