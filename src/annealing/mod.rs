@@ -1,6 +1,6 @@
 use core::fmt;
 use itertools::{izip, Itertools};
-use ndarray::{s, Array2, ArrayBase, ArrayView1, ArrayView2, ArrayViewMut1, Dim, Ix2, SliceInfo, SliceInfoElem, ViewRepr};
+use ndarray::{s, Array, Array2, ArrayBase, ArrayView1, ArrayView2, ArrayViewMut1, Dim, Ix2, SliceInfo, SliceInfoElem, ViewRepr};
 use rand::thread_rng;
 use rand::{distributions::Open01, seq::SliceRandom, Rng};
 use std::{collections::BTreeSet, io::stdout, iter::FromIterator, ops::Index, usize, vec};
@@ -39,8 +39,8 @@ pub fn fitness_score_rows(grid: &Grid) -> usize {
     conflicts
 }
 
-pub fn generate_solution(grid: &Grid, index: usize) {
-    let mut current: ArrayView2<u8> = grid.get_subgrid(index);
+pub fn generate_solution(grid: &Grid, index: usize) -> Array2<u8> {
+    let current: ArrayView2<u8> = grid.get_subgrid(index);
     let mut rng = thread_rng();
     let fixed = &grid.fixed_subgrid_positions[index];
 
@@ -58,20 +58,7 @@ pub fn generate_solution(grid: &Grid, index: usize) {
     sln[[first_index.0, first_index.1]] = sln[[second_index.0, second_index.1]];
     sln[[second_index.0, second_index.1]] = value_1;
 
-
-
-    // sln[*swap.1] = value;
-
-    // let pair: Vec<&usize> = free_indices.choose_multiple(&mut rng, 2).collect();
-
-    // let value_1 = current[*pair[0]];
-
-    // current[*pair[0]] = current[*pair[1]];
-    // current[*pair[1]] = value_1;
-
-    println!("{}", current);
-    println!("{}", sln);
-    // return ArrayView1;
+    sln
 }
 
 // pub fn fitness_grid<'a>(solution: &Vec<u8>, index: usize, grid: &'a Grid) -> Vec<(usize, &'a[u8; 9])>{

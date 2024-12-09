@@ -2,12 +2,14 @@
 mod tests {
     use std::{collections::BTreeSet, vec};
     use dotenv::dotenv;
+    use itertools::Itertools;
+    use ndarray::Array2;
 
     // use crate::annealing::{
     //     assign_solution, check_completeness, evaluate_solution, fitness_grid, fitness_score_row, fitness_subgrid, fitness_subgrids, gather_fixed_indices, gather_free_indices, gather_value_pool, generate_neighbourhood, generate_solution_fixed, initial_assignment, swap_values
     // };
 
-    use crate::{annealing, grid::Grid};
+    use crate::{annealing, grid::{self, Grid}};
 
 
     fn setup_solved_cache() -> Grid {
@@ -69,25 +71,31 @@ mod tests {
     }
 
 
-    // #[test]
-    // fn test_generate_solution_fixed(){
-    //     let row_index: usize = 1;
-    //     let sln = setup_empty_solution();
-    //     let (cache, _) = setup_cache();
-    //     let mut generated_solution: Vec<u8> = sln.to_vec();
-    //     let fixed_from_sln = gather_fixed_indices(&sln);
-    //     let mut equal = true;
+    #[test]
+    fn test_generate_solution_fixed(){
+        let mut equal = true;
+        let subgrid_index: usize = 1;
+        let mut grid = Grid::from_file("empty_example.txt");
+        grid.initialize();
 
-    //     generate_solution_fixed(&mut generated_solution, row_index, &cache);
+        let sln: Array2<u8> = annealing::generate_solution(&grid, subgrid_index);
 
-    //     for index in fixed_from_sln.iter() {
-    //         let gen_value = generated_solution[*index];
-    //         let sln_value = sln[*index];
-    //         equal = gen_value == sln_value;
-    //     }
+        let fixed_subgrid = &grid.fixed_subgrid_positions[subgrid_index];
+        let ground_truth = grid.get_subgrid(subgrid_index);
+        for index in fixed_subgrid.iter() {
+            let (x, y) = Grid::map_to_grid(*index);
+            equal = sln[[x, y]] == ground_truth[[x, y]];
+        }
 
-    //     assert!(equal);
-    // }
+        assert!(equal);
+
+        let mut sln_values = sln.clone().into_raw_vec();
+
+        let legal_values: Vec<u8> = (0..10).collect();
+        sln_values.retain(|value| legal_values.contains(value));
+
+        assert_eq!(sln_values.len(), 9);
+    }
 
     // #[test]
     // fn test_check_completeness() {
