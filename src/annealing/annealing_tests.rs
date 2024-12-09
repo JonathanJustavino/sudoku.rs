@@ -78,7 +78,10 @@ mod tests {
         let mut grid = Grid::from_file("empty_example.txt");
         grid.initialize();
 
-        let sln: Array2<u8> = annealing::generate_solution(&grid, subgrid_index);
+        let current = grid.get_subgrid(subgrid_index).to_owned();
+        let fixed = &grid.fixed_subgrid_positions[subgrid_index];
+
+        let sln: Array2<u8> = annealing::generate_solution(&current, &fixed);
 
         let fixed_subgrid = &grid.fixed_subgrid_positions[subgrid_index];
         let ground_truth = grid.get_subgrid(subgrid_index);
@@ -95,6 +98,21 @@ mod tests {
         sln_values.retain(|value| legal_values.contains(value));
 
         assert_eq!(sln_values.len(), 9);
+    }
+
+
+    #[test]
+    fn test_assign_solution() {
+        let index = 2;
+        let mut grid = Grid::from_file("empty_example.txt");
+        let sln: Array2<u8> = Array2::from_shape_vec((3, 3), vec![2, 3, 4, 5, 6, 7, 8, 1, 9]).unwrap();
+        let ground_truth = sln.clone();
+
+        annealing::assign_solution(sln, index, &mut grid);
+
+        let subgrid = grid.get_subgrid(index);
+
+        assert_eq!(ground_truth, subgrid);
     }
 
     // #[test]

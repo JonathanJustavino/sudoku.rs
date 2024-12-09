@@ -1,52 +1,16 @@
-use core::fmt;
-use itertools::{izip, Itertools};
-use ndarray::{s, Array, Array2, ArrayBase, ArrayView1, ArrayView2, ArrayViewMut1, Dim, Ix2, SliceInfo, SliceInfoElem, ViewRepr};
+use itertools::Itertools;
+use ndarray::{s, Array1, Array2, Axis, Ix1, Zip};
 use rand::thread_rng;
-use rand::{distributions::Open01, seq::SliceRandom, Rng};
-use std::{collections::BTreeSet, io::stdout, iter::FromIterator, ops::Index, usize, vec};
+use rand::seq::SliceRandom;
 
-use crate::{grid, utils};
 use crate::grid::Grid;
 
 
-pub fn fitness_col(grid: &Grid, index: usize) -> usize {
-    grid.check_col(index)
-}
-
-pub fn fitness_row(grid: &Grid, index: usize) -> usize {
-    grid.check_row(index)
-}
-
-
-pub fn fitness_score_cols(grid: &Grid) -> usize {
-    let mut conflicts: usize = 0;
-    let collisions = 0;
-
-    for index in 0..9 {
-        conflicts += fitness_col(grid, index);
-    }
-
-    conflicts
-}
-
-pub fn fitness_score_rows(grid: &Grid) -> usize {
-    let mut conflicts: usize = 0;
-
-    for index in 0..9 {
-        conflicts += fitness_row(grid, index);
-    }
-
-    conflicts
-}
-
-pub fn generate_solution(grid: &Grid, index: usize) -> Array2<u8> {
-    let current: ArrayView2<u8> = grid.get_subgrid(index);
+pub fn generate_solution(current: &Array2<u8>, fixed_positions: &Vec<usize>) -> Array2<u8> {
     let mut rng = thread_rng();
-    let fixed = &grid.fixed_subgrid_positions[index];
-
     let mut candidates: Vec<usize> = (0..9).collect();
 
-    candidates.retain(|index| !fixed.contains(index));
+    candidates.retain(|index| !fixed_positions.contains(index));
 
     let swap: (&usize, &usize) = candidates.choose_multiple(&mut rng, 2).collect_tuple().unwrap();
     let mut sln: Array2<u8> = current.clone().to_owned();
@@ -107,109 +71,76 @@ pub fn accept<'a>(new: (usize, Vec<u8>), old: (usize, Vec<u8>), current_temperat
     old
 }
 
+pub fn generate_neighbourhood(base: Array2<u8>, fixed_positions: &Vec<usize>, amount: u8) -> Vec<Array2<u8>> {
+    let mut neighbourhood: Vec<Array2<u8>> = vec![];
 
-// pub fn generate_solution_fixed(row: &mut Vec<u8>, row_index: usize, cache: &Cache){
-//     let free_positions = gather_free_indices(row_index, cache);
-//     let mut pool = gather_value_pool(&row, row_index, cache);
-//     let mut rng = rand::thread_rng();
-
-//     pool.shuffle(&mut rng);
-
-//     for (value, position) in pool.iter().zip(free_positions.iter()) {
-//         // let (value, position) = iterator;
-//         row[*position] = *value;
-//     }
-// }
-
-
-// pub fn swap_values(solution: &mut Vec<u8>, index: usize, cache: &Cache) -> Option<(usize, usize)> {
-//     let fixed_indexes = BTreeSet::from_iter(&cache.fixed_positions[index]);
-
-//     if fixed_indexes.len() == 9 {
-//         return None;
-//     }
-
-//     let mut pool: Vec<usize> = vec![0, 1, 2, 3, 4, 5, 6, 7, 8];
-//     let mut rng_first = rand::thread_rng();
-//     let mut rng_second = rand::thread_rng();
-
-//     pool.retain(|value|!fixed_indexes.contains(value));
-//     let mut second_pool = pool.clone();
-//     let first = match pool.choose(&mut rng_first) {
-//         Some(value) => *value,
-//         None => 0,
-//     };
-
-//     second_pool.retain(|value| *value != first);
-//     let second = match second_pool.choose(&mut rng_second) {
-//         Some(value) => *value,
-//         None => 0,
-//     };
-
-//     if first == second {
-//         return None;
-//     }
-
-//     let first_value = solution[first];
-
-//     solution[first] = solution[second];
-//     solution[second] = first_value;
-
-//     Some((first, second))
-// }
-
-
-pub fn swap_index_with_value(mut solution: Vec<u8>) -> Vec<u8> {
-    let chunk_size = 2;
-    let mut rng = rand::thread_rng();
-    let amount = rng.gen_range(2..9);
-    let mut sampled = rand::seq::index::sample(&mut rng, 9, amount).into_vec();
-    let sampled_length = sampled.len();
-
-    println!("sampled {:?}", sampled);
-
-    if sampled_length % 2 != 0 {
-        let first = sampled[0];
-        sampled.push(first);
+    for _ in 0..amount {
+        let neighbor = generate_solution(&base, &fixed_positions);
+        neighbourhood.push(neighbor);
     }
 
-    for pair in sampled.chunks(chunk_size) {
-        solution.swap(pair[0], pair[1]);
-    }
-
-    solution
+    neighbourhood
 }
 
+pub fn assign_solution(solution: Array2<u8>, index: usize, grid: &mut Grid) {
+    //TODO: Maybe dicrectly assign with index
+    for (index_chunk, mut chunk) in grid.matrix.exact_chunks_mut((3, 3)).into_iter().enumerate() {
+        if index == index_chunk {
+            chunk.assign(&solution);
+            break;
+        }
+    }
+}
 
-// pub fn generate_neighbourhood(solution: Vec<u8>, row_index: usize, amount: u8, cache: &Cache) -> Vec<Vec<u8>> {
-//     let mut neighbourhood: Vec<Vec<u8>> = vec![];
+pub fn compute_col_collisions(grid: &Grid) -> usize {
+    let mut col_collisions = 0;
+    let col_dim = 9;
+    let row_dim = 9;
 
-//     for _ in 0..amount {
-//         let mut neighbour = solution.clone();
-//         //TODO: changing from solution fixed to swap
-//         // generate_solution_fixed(&mut neighbour, row_index, &cache);
+    for col_index in 0..col_dim {
+        let row = grid.matrix.column(col_index);
+        if col_index >= 8 {
+            break;
+        }
+        for compare_index in col_index + 1..col_dim {
+            let next_row = grid.matrix.column(compare_index);
+            for row_index in 0..row_dim {
+                let left = row[row_index];
+                let right = next_row[row_index];
+                if left == right {
+                    col_collisions += 1;
+                }
+            }
+        }
+    }
 
-//         let indices = swap_values(&mut neighbour, row_index, &cache);
-//         match indices {
-//             Some((_, _)) => neighbourhood.push(neighbour),
-//             None => continue
-//         }
-//     }
+    col_collisions
+}
 
-//     neighbourhood
-// }
+pub fn compute_row_collisions(grid: &Grid) -> usize {
+    let mut row_collisions = 0;
+    let col_dim = 9;
+    let row_dim = 9;
 
-// pub fn assign_solution(solution: Vec<u8>, index: usize, grid: &mut Grid) {
-//     let new = match TryFrom::try_from(solution) {
-//         Ok(ba) => ba,
-//         Err(_) => panic!("Could not convert solution vec to [ ]")
-//     };
-//     grid.matrix[index] = new;
+    for row_index in 0..row_dim {
+        let row = grid.matrix.row(row_index);
+        if row_index >= 8 {
+            break;
+        }
+        for compare_index in row_index + 1..row_dim {
+            let next_row = grid.matrix.row(compare_index);
+            for col_index in 0..col_dim {
+                let left = row[col_index];
+                let right = next_row[col_index];
+                if left == right {
+                    row_collisions += 1;
+                }
+            }
+        }
+    }
 
-//     // for (solution_index, value) in solution.iter().enumerate() {
-//     //     grid.matrix[index][solution_index] = *value;
-//     // }
-// }
+    row_collisions
+}
 
 
 // pub fn evaluate_grid(new: &Vec<u8>, index: usize, grid: &Grid) -> usize {
@@ -236,22 +167,6 @@ pub fn swap_index_with_value(mut solution: Vec<u8>) -> Vec<u8> {
 //     total_conflicts
 // }
 
-
-// pub fn check_completeness(grid: &Grid) -> usize {
-//     let mut total_conflicts = 0;
-//     let matrix = grid.matrix;
-
-//     for (row_index, row) in matrix.iter().enumerate() {
-//         let solution = row.to_vec();
-//         for next_row in matrix.iter().skip(row_index + 1) {
-//             let collisions = fitness_score_row(&solution, next_row);
-//             total_conflicts += collisions;
-//         }
-//     }
-
-//     let subgrid_conflicts = fitness_subgrids(grid);
-//     total_conflicts + subgrid_conflicts
-// }
 
 // pub fn explore(item_index: usize, grid: &Grid, cache: &Cache, temperature: f64, neighbourhood_size: u8) -> (usize, Vec<u8>) {
 //     // Select current point
