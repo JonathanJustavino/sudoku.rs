@@ -1,8 +1,7 @@
 #[cfg(test)]
 mod tests {
-    use crate::grid::{Grid};
-    use ndarray::{self, Array2, array};
-    use crate::utils;
+    use crate::grid::Grid;
+    use ndarray::Array2;
 
     #[test]
     fn it_works() {
@@ -12,8 +11,7 @@ mod tests {
 
     #[test]
     fn test_insert_subgrid() {
-        let matrix: Array2<u8> = Array2::<u8>::zeros((9,9));
-
+        let matrix: Array2<u8> = Array2::<u8>::zeros((9, 9));
         let mut grid = Grid::new(matrix);
 
         for i in 0..9 {
@@ -48,5 +46,4 @@ mod tests {
 
         assert_eq!(free_values, collected);
     }
-
 }
