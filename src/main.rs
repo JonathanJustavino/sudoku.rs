@@ -28,7 +28,7 @@ fn main() {
     // -------------------------
 
     // let mut grid = Grid::from_file("empty_example.txt");
-    let mut grid = Grid::from_file("empty_example.txt");
+    let mut grid = Grid::from_file("easy.txt");
     println!("{}", grid);
     let cooling_ratio = 0.99;
     annealing::anneal(&mut grid, cooling_ratio);

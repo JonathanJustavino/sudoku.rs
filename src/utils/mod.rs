@@ -12,22 +12,22 @@ use std::{fs, path::PathBuf};
 //     iter.into_iter().all(move |x| uniq.insert(x))
 // }
 
-pub fn compute_mean(values: &[f64]) -> f64 {
-    let sum: f64 = values.iter().sum();
-    let count = values.len() as f64;
+pub fn compute_mean(values: &[f32]) -> f32 {
+    let sum: f32 = values.iter().sum();
+    let count = values.len() as f32;
     sum / count
 }
 
-pub fn compute_standard_deviation(values: &[f64]) -> Option<f64> {
+pub fn compute_standard_deviation(values: &[f32]) -> Option<f32> {
     if values.is_empty() {
         return None;
     }
 
     let mean = compute_mean(values);
 
-    let sum_of_squares: f64 = values.iter().map(|&x| (x - mean).powi(2)).sum();
+    let sum_of_squares: f32 = values.iter().map(|&x| (x - mean).powi(2)).sum();
 
-    let variance = sum_of_squares / (values.len() as f64);
+    let variance = sum_of_squares / (values.len() as f32);
     Some(variance.sqrt())
 }
 

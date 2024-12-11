@@ -95,7 +95,7 @@ pub fn _assign_solution(solution: Array2<u8>, index: usize, grid: &mut Grid) {
 //     col_collisions
 // }
 
-pub fn compute_col_collisions(matrix: &Array2<u8>) -> usize {
+pub fn compute_col_collisions(matrix: &Array2<u8>) -> i32 {
     let mut col_collisions = 0;
     let col_dim = 9;
     let row_dim = 9;
@@ -120,7 +120,7 @@ pub fn compute_col_collisions(matrix: &Array2<u8>) -> usize {
     col_collisions
 }
 
-pub fn compute_row_collisions(matrix: &Array2<u8>) -> usize {
+pub fn compute_row_collisions(matrix: &Array2<u8>) -> i32 {
     let mut row_collisions = 0;
     let col_dim = 9;
     let row_dim = 9;
@@ -145,7 +145,7 @@ pub fn compute_row_collisions(matrix: &Array2<u8>) -> usize {
     row_collisions
 }
 
-pub fn check_completeness(matrix: &Array2<u8>) -> usize {
+pub fn check_completeness(matrix: &Array2<u8>) -> i32 {
     let mut collisions = 0;
     collisions += compute_col_collisions(matrix);
 
@@ -215,33 +215,35 @@ pub fn _log(conflicts: usize) {
     // stdout().flush().unwrap();
 }
 
-pub fn log_headline(headline: &str, grid: &Grid) {
+pub fn log_headline(headline: &str, grid: &Grid, conflicts: i32, temperature: f32) {
     let white_space = " ";
     let headline_len = headline.len() / 2;
     let grid_log_half = 12;
 
     println!(
-        "{}{}\n{}",
+        "{}{}\n{}\nConflicts => {} | Temperature => {}",
         white_space.repeat(grid_log_half - headline_len),
         headline,
-        grid
+        grid,
+        conflicts,
+        temperature
     );
 }
 
-pub fn calculate_temperature(grid: &Grid) -> f64 {
+pub fn calculate_temperature(grid: &Grid) -> f32 {
     const LENGTH: usize = 200;
     let mut scores = [0.0; LENGTH];
 
     for item in scores.iter_mut().take(LENGTH) {
         let mut test_init = grid.clone();
         test_init.initialize();
-        *item = check_completeness(&test_init.matrix) as f64;
+        *item = check_completeness(&test_init.matrix) as f32;
     }
 
     utils::compute_standard_deviation(&scores).unwrap()
 }
 
-pub fn estimate_attempts(fixed_positions: &[Vec<usize>]) -> f64 {
+pub fn estimate_attempts(fixed_positions: &[Vec<usize>]) -> f32 {
     /*
         Calculate the total number of iterations for the simulated annealing algorithm.
         The total number of iterations is equal to the square of the number of mutable
@@ -258,79 +260,79 @@ pub fn estimate_attempts(fixed_positions: &[Vec<usize>]) -> f64 {
         fixed_values += row.len();
     }
 
-    (total_cells - fixed_values as f64).powi(2)
+    (total_cells - fixed_values as f32).powi(2)
 }
 
 //TODO: use with lifetime annoations
 pub fn accept(
     current: &Grid,
     proposed: &Grid,
-    current_temperature: f64,
+    current_temperature: f32,
     _debug_index: usize,
-) -> Grid {
-    // let mut current_score = compute_col_collisions(current);
-    // current_score += compute_row_collisions(current);
+) -> (Grid, i32) {
     let current_score = check_completeness(&current.matrix);
 
-    // let mut new_score = compute_col_collisions(proposed);
-    // new_score += compute_row_collisions(proposed);
     let new_score = check_completeness(&proposed.matrix);
 
-    if new_score < current_score {
-        return proposed.to_owned();
+    // if new_score < current_score {
+    //     return proposed.to_owned();
+    // }
+
+    let delta = new_score as f32 - current_score as f32;
+    let returned_score = delta as i32;
+
+    if delta < 0.0 {
+        return (proposed.to_owned(), returned_score);
     }
 
-    let delta = new_score as f64 - current_score as f64;
-
     // 1 / (1 + e^( eval(v_current) - eval(v_n) ) / T)
-    let criteria = -(1.0 / (1.0 + libm::exp(delta / current_temperature)));
+    let criteria = -(1.0 / (1.0 + libm::expf(delta / current_temperature)));
 
     if criteria > 0.5 {
-        return proposed.to_owned();
+        return (proposed.to_owned(), returned_score);
     }
 
     // println!("{}", debug_index);
 
-    current.to_owned()
+    (current.to_owned(), 0)
 }
 
 pub fn explore_new_state(
     subgrid_index: usize,
     grid: &mut Grid,
     neighbors: &[Array2<u8>],
-    current_temperature: f64,
+    current_temperature: f32,
     debug_index: usize,
-) {
+) -> i32 {
     let mut rng = thread_rng();
     let neighbour: &Array2<u8> = neighbors.choose(&mut rng).unwrap();
     let mut proposed = grid.clone();
     proposed.set_subgrid(neighbour, subgrid_index);
-    let selected = accept(grid, &proposed, current_temperature, debug_index);
+    let (selected, collision_diff) = accept(grid, &proposed, current_temperature, debug_index);
 
     if grid.matrix == selected.matrix {
-        return;
+        return 0;
     }
 
     grid.matrix = selected.matrix;
+
+    collision_diff
 }
 
-pub fn anneal(initial_grid: &mut Grid, cooling_ratio: f64) {
+pub fn anneal(initial_grid: &mut Grid, cooling_ratio: f32) {
     loop {
-        let threshold = 10;
+        let threshold = 100;
         let mut grid = initial_grid.clone();
         grid.initialize();
         let mut conflicts = check_completeness(&grid.matrix);
 
         if conflicts == 0 {
-            log_headline("Solved", &grid);
+            log_headline("Solved", &grid, conflicts, 0.0);
             return;
         }
-        // log_headline("Initial Grid", &grid);
 
         let fixed = &grid.fixed_subgrid_positions;
         let total_attempts = estimate_attempts(fixed) as i32;
-
-        // log_headline("After initial assignment", &grid);
 
         let mut current_temperature = calculate_temperature(initial_grid);
         let mut rng = rand::thread_rng();
@@ -344,7 +346,7 @@ pub fn anneal(initial_grid: &mut Grid, cooling_ratio: f64) {
 
             // log_headline("Before neighbor", &grid);
 
-            explore_new_state(
+            let conflicts_diff = explore_new_state(
                 index,
                 &mut grid,
                 &neighbourhood,
@@ -352,11 +354,11 @@ pub fn anneal(initial_grid: &mut Grid, cooling_ratio: f64) {
                 debug_index as usize,
             );
 
-            // log_headline("After neighbor", &grid);
-            conflicts = check_completeness(&grid.matrix);
+            conflicts += conflicts_diff;
+            current_temperature *= cooling_ratio;
 
             if conflicts == 0 {
-                println!("{}", grid);
+                log_headline("Solved", &grid, conflicts, current_temperature);
                 return;
             }
 
@@ -364,15 +366,16 @@ pub fn anneal(initial_grid: &mut Grid, cooling_ratio: f64) {
                 stuck_count += 1;
             }
 
+            if stuck_count % 25 == 0 {
+                print!(
+                    "\rS:{} P:{} C:{} T:{}",
+                    stuck_count, previous_conflicts, conflicts, current_temperature
+                );
+            }
+
             if stuck_count > threshold {
                 break;
             }
-
-            current_temperature *= cooling_ratio;
-            println!(
-                "P:{} C:{} T:{}",
-                previous_conflicts, conflicts, current_temperature
-            );
         }
     }
 
