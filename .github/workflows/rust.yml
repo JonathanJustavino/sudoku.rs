@@ -16,6 +16,10 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    - name: Set Path variable for Templates
+      run: echo "TEMPLATE_DIR=${{github.workspace}}/static" >> $GITHUB_ENV
+    - name: Verify Template Path
+      run: echo "Template path -> $TEMPLATE_DIR"
     - name: Build
       run: cargo build --verbose
     - name: Run tests
