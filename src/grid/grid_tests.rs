@@ -11,8 +11,7 @@ mod tests {
 
     #[test]
     fn test_insert_subgrid() {
-        let matrix: Array2<u8> = Array2::<u8>::zeros((9, 9));
-        let mut grid = Grid::new(matrix);
+        let mut grid = Grid::from_file("empty.txt");
 
         for i in 0..9 {
             let mut sub_grid: Array2<u8> = Array2::<u8>::ones((3, 3));

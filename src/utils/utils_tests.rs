@@ -1,13 +1,13 @@
 #[cfg(test)]
 mod tests {
+    use crate::utils::{self, cast_to_array};
+    use ndarray::{array, Array2};
     use std::any::Any;
     use std::env::current_dir;
     use std::path::{Path, PathBuf};
-    use ndarray::{array, Array2, Axis};
-    use crate::utils::{self, cast_to_array};
 
     fn create_template() -> Array2<u8> {
-       let data = array![
+        let data: Array2<u8> = array![
             [0, 8, 9, 5, 4, 1, 6, 2, 0],
             [0, 4, 2, 6, 9, 3, 7, 8, 0],
             [6, 5, 3, 2, 8, 7, 4, 1, 9],
@@ -19,7 +19,7 @@ mod tests {
             [5, 3, 8, 4, 1, 2, 9, 6, 7],
         ];
 
-        return data;
+        data
     }
 
     fn create_testing_path() -> PathBuf {
@@ -31,8 +31,8 @@ mod tests {
         };
 
         let base_path = base_path.as_path();
-        let sudoku_template_path_buf = base_path.join(path_str);
-        return sudoku_template_path_buf;
+
+        base_path.join(path_str)
     }
 
     #[test]
@@ -68,5 +68,4 @@ mod tests {
         assert!(data.type_id() == arr.type_id());
         assert!(data == arr);
     }
-
 }

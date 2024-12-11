@@ -6,24 +6,23 @@ pub struct Grid {
 }
 
 impl Grid {
-    pub fn new(matrix: [[u8; 9]; 9]) -> Self {
-        Self {matrix: matrix}
+    pub fn _new(matrix: [[u8; 9]; 9]) -> Self {
+        Self { matrix }
     }
 }
 
-
 impl Grid {
-    pub fn check_value(&self, input: &u8, position: (&u8, &u8)) -> bool {
+    pub fn _check_value(&self, input: &u8, position: (&u8, &u8)) -> bool {
         let row_idx = usize::from(*position.0);
         let col_idx = usize::from(*position.1);
         let valid = true;
 
         match (*input, col_idx, row_idx) {
-            (0..=9, 0..=9,0..=9) => true,
+            (0..=9, 0..=9, 0..=9) => true,
             _ => {
-                println!("{}", "Invalid input");
+                println!("Invalid input");
                 return !valid;
-            },
+            }
         };
 
         if 0 < self.matrix[row_idx][col_idx] {
@@ -48,7 +47,8 @@ impl Grid {
     fn _check_row(&self, input: &u8, position: (&u8, &u8)) -> bool {
         let row_idx: usize = usize::from(*position.0);
         let row = self.matrix[row_idx];
-        return !row.contains(&input);
+
+        !row.contains(input)
     }
 
     fn _check_col(&self, input: &u8, position: (&u8, &u8)) -> bool {
@@ -98,7 +98,7 @@ impl Grid {
 
 impl fmt::Display for Grid {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        let col_separator = format!("{}", "| ");
+        let col_separator = "| ".to_string();
         let row_separator = format!("{}{}", "-".repeat(25), "\n");
         let mut output = String::from("").to_owned();
 

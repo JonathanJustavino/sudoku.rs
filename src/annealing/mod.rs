@@ -1,18 +1,22 @@
 use itertools::Itertools;
-use ndarray::{s, Array1, Array2, Axis, Ix1, Zip};
-use rand::thread_rng;
+use ndarray::{s, Array1, Array2, Zip};
 use rand::seq::SliceRandom;
+use rand::thread_rng;
+use rand::Rng;
 
 use crate::grid::Grid;
+use crate::utils;
 
-
-pub fn generate_solution(current: &Array2<u8>, fixed_positions: &Vec<usize>) -> Array2<u8> {
+pub fn generate_solution(current: &Array2<u8>, fixed_positions: &[usize]) -> Array2<u8> {
     let mut rng = thread_rng();
     let mut candidates: Vec<usize> = (0..9).collect();
 
     candidates.retain(|index| !fixed_positions.contains(index));
 
-    let swap: (&usize, &usize) = candidates.choose_multiple(&mut rng, 2).collect_tuple().unwrap();
+    let swap: (&usize, &usize) = candidates
+        .choose_multiple(&mut rng, 2)
+        .collect_tuple()
+        .unwrap();
     let mut sln: Array2<u8> = current.clone().to_owned();
 
     let first_index = Grid::map_to_grid(*swap.0);
@@ -51,38 +55,19 @@ pub fn generate_solution(current: &Array2<u8>, fixed_positions: &Vec<usize>) -> 
 //     score + subgrid_score
 // }
 
-pub fn accept<'a>(new: (usize, Vec<u8>), old: (usize, Vec<u8>), current_temperature: f64, debug_index: usize) -> (usize, Vec<u8>) {
-    let new_score = new.0;
-    let old_score = old.0;
-    if new_score < old_score {
-        return new
-    }
-
-    let delta = new_score as f64 - old_score as f64;
-
-    // 1 / (1 + e^( eval(v_current) - eval(v_n) ) / T)
-    // let criteria = -(1.0 / (1.0 + libm::exp(delta / current_temperature)));
-    let criteria = 1.0 / (1.0 + libm::exp(delta / current_temperature));
-
-    if criteria > 0.5 {
-        return new
-    }
-
-    old
-}
-
-pub fn generate_neighbourhood(base: Array2<u8>, fixed_positions: &Vec<usize>, amount: u8) -> Vec<Array2<u8>> {
+pub fn generate_neighbourhood(base: Array2<u8>, fixed_positions: &[usize]) -> Vec<Array2<u8>> {
     let mut neighbourhood: Vec<Array2<u8>> = vec![];
+    let amount = 9;
 
     for _ in 0..amount {
-        let neighbor = generate_solution(&base, &fixed_positions);
+        let neighbor = generate_solution(&base, fixed_positions);
         neighbourhood.push(neighbor);
     }
 
     neighbourhood
 }
 
-pub fn assign_solution(solution: Array2<u8>, index: usize, grid: &mut Grid) {
+pub fn _assign_solution(solution: Array2<u8>, index: usize, grid: &mut Grid) {
     //TODO: Maybe dicrectly assign with index
     for (index_chunk, mut chunk) in grid.matrix.exact_chunks_mut((3, 3)).into_iter().enumerate() {
         if index == index_chunk {
@@ -92,18 +77,36 @@ pub fn assign_solution(solution: Array2<u8>, index: usize, grid: &mut Grid) {
     }
 }
 
-pub fn compute_col_collisions(grid: &Grid) -> usize {
+// pub fn crc(grid: &Grid) -> usize {
+//     let mut row_collisions = 0;
+//     for index in 0..9 {
+//         row_collisions += grid.check_row(index);
+//     }
+
+//     row_collisions
+// }
+
+// pub fn ccc(grid: &Grid) -> usize {
+//     let mut col_collisions = 0;
+//     for index in 0..9 {
+//         col_collisions += grid.check_col(index);
+//     }
+
+//     col_collisions
+// }
+
+pub fn compute_col_collisions(matrix: &Array2<u8>) -> usize {
     let mut col_collisions = 0;
     let col_dim = 9;
     let row_dim = 9;
 
     for col_index in 0..col_dim {
-        let row = grid.matrix.column(col_index);
+        let row = matrix.column(col_index);
         if col_index >= 8 {
             break;
         }
         for compare_index in col_index + 1..col_dim {
-            let next_row = grid.matrix.column(compare_index);
+            let next_row = matrix.column(compare_index);
             for row_index in 0..row_dim {
                 let left = row[row_index];
                 let right = next_row[row_index];
@@ -117,18 +120,18 @@ pub fn compute_col_collisions(grid: &Grid) -> usize {
     col_collisions
 }
 
-pub fn compute_row_collisions(grid: &Grid) -> usize {
+pub fn compute_row_collisions(matrix: &Array2<u8>) -> usize {
     let mut row_collisions = 0;
     let col_dim = 9;
     let row_dim = 9;
 
     for row_index in 0..row_dim {
-        let row = grid.matrix.row(row_index);
+        let row = matrix.row(row_index);
         if row_index >= 8 {
             break;
         }
         for compare_index in row_index + 1..row_dim {
-            let next_row = grid.matrix.row(compare_index);
+            let next_row = matrix.row(compare_index);
             for col_index in 0..col_dim {
                 let left = row[col_index];
                 let right = next_row[col_index];
@@ -142,6 +145,36 @@ pub fn compute_row_collisions(grid: &Grid) -> usize {
     row_collisions
 }
 
+pub fn check_completeness(matrix: &Array2<u8>) -> usize {
+    let mut collisions = 0;
+    collisions += compute_col_collisions(matrix);
+
+    collisions + compute_row_collisions(matrix)
+}
+
+pub fn _buggy_check_completeness(grid: &Grid) {
+    let mut row_collisions = 0;
+
+    for (row_index, row) in grid.matrix.rows().into_iter().enumerate() {
+        if row_index >= 8 {
+            break;
+        }
+
+        let subview = grid.matrix.slice(s![row_index + 1..9, ..]);
+        for compare_row in subview.rows() {
+            println!("Comparing {} {}", row, compare_row);
+            let res: Array1<bool> = Zip::from(&row)
+                .and(&compare_row)
+                .map_collect(|&x, &y| x == y);
+
+            let collisions = res.iter().filter(|comp_eq| **comp_eq).count();
+
+            row_collisions += collisions;
+        }
+
+        println!("{:?}", row_collisions);
+    }
+}
 
 // pub fn evaluate_grid(new: &Vec<u8>, index: usize, grid: &Grid) -> usize {
 //     let length: usize = 8;
@@ -161,33 +194,12 @@ pub fn compute_row_collisions(grid: &Grid) -> usize {
 
 //     for (index, row) in grid.matrix.iter().enumerate() {
 
-
 //     }
 
 //     total_conflicts
 // }
 
-
-// pub fn explore(item_index: usize, grid: &Grid, cache: &Cache, temperature: f64, neighbourhood_size: u8) -> (usize, Vec<u8>) {
-//     // Select current point
-//     let start = grid.matrix[item_index].to_vec();
-//     let current_solution_score: usize = evaluate_solution(&start, item_index, &grid);
-//     let mut current_solution: (usize, Vec<u8>) = (current_solution_score, start.clone());
-//     // Generate Neighborhood from current point
-//     let neighborhood = generate_neighbourhood(start.clone(), item_index, neighbourhood_size, cache);
-//     let mut neighbor_solution_score: usize;
-
-//     for neighbor in neighborhood.iter() {
-//         // Evaluate current point
-//         neighbor_solution_score = evaluate_solution(&neighbor, item_index, &grid);
-//         current_solution = accept((neighbor_solution_score, neighbor.clone()), current_solution, temperature, item_index);
-//     }
-
-//     current_solution
-
-// }
-
-pub fn log(conflicts: usize) {
+pub fn _log(conflicts: usize) {
     let log_start = "+";
     let log_dash = "-";
     let white_space = " ";
@@ -208,89 +220,165 @@ pub fn log_headline(headline: &str, grid: &Grid) {
     let headline_len = headline.len() / 2;
     let grid_log_half = 12;
 
-    println!("{}{}\n{}", white_space.repeat(grid_log_half - headline_len), headline, grid);
+    println!(
+        "{}{}\n{}",
+        white_space.repeat(grid_log_half - headline_len),
+        headline,
+        grid
+    );
 }
 
-// pub fn calculate_temperature(matrix: [[u8;9];9], cache_grid: Grid) -> f64 {
+pub fn calculate_temperature(grid: &Grid) -> f64 {
+    const LENGTH: usize = 200;
+    let mut scores = [0.0; LENGTH];
 
-//     let mut assign_grid = Grid::new(matrix.clone());
-//     let assign_cache = Cache::new(&cache_grid.clone());
-//     const LENGTH: usize = 10;
-//     let mut scores = [0.0 as f64; LENGTH];
+    for item in scores.iter_mut().take(LENGTH) {
+        let mut test_init = grid.clone();
+        test_init.initialize();
+        *item = check_completeness(&test_init.matrix) as f64;
+    }
 
-//     for index in 0..10 {
-//         initial_assignment(&mut assign_grid, &assign_cache);
-//         let subgrid_score = fitness_subgrids(&assign_grid);
-//         let grid_score = check_completeness(&assign_grid);
-//         scores[index] = subgrid_score as f64 + grid_score as f64;
-//     }
+    utils::compute_standard_deviation(&scores).unwrap()
+}
 
-//     utils::compute_standard_deviation(&scores).unwrap()
-// }
+pub fn estimate_attempts(fixed_positions: &[Vec<usize>]) -> f64 {
+    /*
+        Calculate the total number of iterations for the simulated annealing algorithm.
+        The total number of iterations is equal to the square of the number of mutable
+        cells on the board.
+        args:
+            board(Board): the board to calculate the total number of iterations for
+        returns:
+            (int) the total number of iterations to run for each temperature
+    */
 
-// pub fn anneal(mut grid: &mut Grid, cooling_ratio: f64, _total_attempts: u32, neighbourhood_size: u8) {
-//     /*TODO:
-//     1. calculate amount of tries per fixed sudoku
-//     2. after the amount of tries test if temperature calculation is correct
-//     */
+    let total_cells = 81.0;
+    let mut fixed_values = 0;
+    for row in fixed_positions.iter() {
+        fixed_values += row.len();
+    }
 
-//     // initialize temperature
-//     let mut init_grid: [[u8; 9]; 9] = [[0; 9]; 9];
+    (total_cells - fixed_values as f64).powi(2)
+}
 
-//     init_grid.copy_from_slice(&grid.matrix);
-//     let cache_grid = Grid::new(init_grid);
-//     log_headline("Initial Grid", grid);
+//TODO: use with lifetime annoations
+pub fn accept(
+    current: &Grid,
+    proposed: &Grid,
+    current_temperature: f64,
+    _debug_index: usize,
+) -> Grid {
+    // let mut current_score = compute_col_collisions(current);
+    // current_score += compute_row_collisions(current);
+    let current_score = check_completeness(&current.matrix);
 
-//     let cache = Cache::new(&cache_grid);
-//     let total_attempts: usize = cache.fixed_positions.iter().map(Vec::len).sum();
-//     initial_assignment(&mut grid, &cache);
+    // let mut new_score = compute_col_collisions(proposed);
+    // new_score += compute_row_collisions(proposed);
+    let new_score = check_completeness(&proposed.matrix);
 
-//     // calculate the std
-//     let temperature = calculate_temperature(grid.matrix, cache_grid);
-//     // let mut assign_grid = Grid::new(grid.matrix.clone());
-//     // let assign_cache = Cache::new(&cache_grid);
-//     // const LENGTH: usize = 10;
-//     // let mut scores = [0.0 as f64; LENGTH];
-//     // for index in 0..10 {
-//     //     initial_assignment(&mut assign_grid, &assign_cache);
-//     //     let subgrid_score = fitness_subgrids(&assign_grid);
-//     //     let grid_score = check_completeness(&assign_grid);
-//     //     scores[index] = subgrid_score as f64 + grid_score as f64;
-//     // }
-//     // let mut temperature = utils::compute_standard_deviation(&scores).unwrap();
+    if new_score < current_score {
+        return proposed.to_owned();
+    }
 
-//     log_headline("After initial assignment", grid);
+    let delta = new_score as f64 - current_score as f64;
 
-//     let conflicts = check_completeness(&grid);
+    // 1 / (1 + e^( eval(v_current) - eval(v_n) ) / T)
+    let criteria = -(1.0 / (1.0 + libm::exp(delta / current_temperature)));
 
-//     if conflicts == 0 {
-//         log_headline("Solved", grid);
-//         return;
-//     }
+    if criteria > 0.5 {
+        return proposed.to_owned();
+    }
 
-//     let mut current_temperature = temperature;
-//     let rows: Vec<u8> = vec![0, 1, 2, 3, 4, 5, 6 ,7, 8];
+    // println!("{}", debug_index);
 
-//     for _ in 0..total_attempts {
+    current.to_owned()
+}
 
-//         let random_row = rows.choose(&mut rand::thread_rng()).unwrap();
-//         let index = *random_row as usize;
-//         let new = explore(index, grid, &cache, temperature, neighbourhood_size);
-//         assign_solution(new.1, index, grid);
-//         let conflicts = check_completeness(grid);
-//         log(conflicts);
-//         if conflicts == 0 {
-//             println!("{}", grid);
-//             return;
-//         }
+pub fn explore_new_state(
+    subgrid_index: usize,
+    grid: &mut Grid,
+    neighbors: &[Array2<u8>],
+    current_temperature: f64,
+    debug_index: usize,
+) {
+    let mut rng = thread_rng();
+    let neighbour: &Array2<u8> = neighbors.choose(&mut rng).unwrap();
+    let mut proposed = grid.clone();
+    proposed.set_subgrid(neighbour, subgrid_index);
+    let selected = accept(grid, &proposed, current_temperature, debug_index);
 
-//         current_temperature = current_temperature * cooling_ratio;
-//     }
+    if grid.matrix == selected.matrix {
+        return;
+    }
 
-//     log_headline("Guess", grid);
-//     println!("end temperature {}", current_temperature);
-// }
+    grid.matrix = selected.matrix;
+}
 
+pub fn anneal(initial_grid: &mut Grid, cooling_ratio: f64) {
+    loop {
+        let threshold = 10;
+        let mut grid = initial_grid.clone();
+        grid.initialize();
+        let mut conflicts = check_completeness(&grid.matrix);
+
+        if conflicts == 0 {
+            log_headline("Solved", &grid);
+            return;
+        }
+        // log_headline("Initial Grid", &grid);
+
+        let fixed = &grid.fixed_subgrid_positions;
+        let total_attempts = estimate_attempts(fixed) as i32;
+
+        // log_headline("After initial assignment", &grid);
+
+        let mut current_temperature = calculate_temperature(initial_grid);
+        let mut rng = rand::thread_rng();
+        let mut stuck_count = 0;
+        let previous_conflicts = conflicts;
+
+        for debug_index in 0..total_attempts {
+            let index = rng.gen_range(0..9);
+            let sln = grid.get_subgrid(index).to_owned();
+            let neighbourhood = generate_neighbourhood(sln, &grid.fixed_subgrid_positions[index]);
+
+            // log_headline("Before neighbor", &grid);
+
+            explore_new_state(
+                index,
+                &mut grid,
+                &neighbourhood,
+                current_temperature,
+                debug_index as usize,
+            );
+
+            // log_headline("After neighbor", &grid);
+            conflicts = check_completeness(&grid.matrix);
+
+            if conflicts == 0 {
+                println!("{}", grid);
+                return;
+            }
+
+            if conflicts >= previous_conflicts {
+                stuck_count += 1;
+            }
+
+            if stuck_count > threshold {
+                break;
+            }
+
+            current_temperature *= cooling_ratio;
+            println!(
+                "P:{} C:{} T:{}",
+                previous_conflicts, conflicts, current_temperature
+            );
+        }
+    }
+
+    // log_headline("Guess", grid);
+    // println!("end temperature {}", current_temperature);
+}
 
 #[cfg(test)]
 mod annealing_tests;

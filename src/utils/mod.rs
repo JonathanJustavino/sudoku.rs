@@ -1,18 +1,16 @@
-use std::{fs, path::PathBuf};
-use std::hash::Hash;
-use std::collections::HashSet;
 use ndarray::Array2;
-use dotenv;
+// use std::collections::HashSet;
+// use std::hash::Hash;
+use std::{fs, path::PathBuf};
 
-
-pub fn has_unique_elements<T>(iter: T) -> bool
-where
-    T: IntoIterator,
-    T::Item: Eq + Hash,
-{
-    let mut uniq = HashSet::new();
-    iter.into_iter().all(move |x| uniq.insert(x))
-}
+// pub fn has_unique_elements<T>(iter: T) -> bool
+// where
+//     T: IntoIterator,
+//     T::Item: Eq + Hash,
+// {
+//     let mut uniq = HashSet::new();
+//     iter.into_iter().all(move |x| uniq.insert(x))
+// }
 
 pub fn compute_mean(values: &[f64]) -> f64 {
     let sum: f64 = values.iter().sum();
@@ -25,25 +23,21 @@ pub fn compute_standard_deviation(values: &[f64]) -> Option<f64> {
         return None;
     }
 
-   let mean = compute_mean(values);
+    let mean = compute_mean(values);
 
-   let sum_of_squares: f64 = values
-        .iter()
-        .map(|&x| (x - mean).powi(2))
-        .sum();
+    let sum_of_squares: f64 = values.iter().map(|&x| (x - mean).powi(2)).sum();
 
-   let variance = sum_of_squares / (values.len() as f64);
-   Some(variance.sqrt())
+    let variance = sum_of_squares / (values.len() as f64);
+    Some(variance.sqrt())
 }
 
 pub fn read_from_file(path: &PathBuf) -> String {
     let read_op = fs::read_to_string(path);
-    let content = match read_op {
+
+    match read_op {
         Ok(file) => file,
         Err(error) => panic!("Problem opening the file: {error:?}"),
-    };
-    return  content;
-
+    }
 }
 
 pub fn cast_to_array(from_file: &PathBuf) -> Array2<u8> {
@@ -53,7 +47,7 @@ pub fn cast_to_array(from_file: &PathBuf) -> Array2<u8> {
         .chars()
         .map(|char| {
             if char.is_ascii_digit() {
-                return (char as u8) - b'0';
+                (char as u8) - b'0'
             } else {
                 panic!("Character is not a valid digit");
             }
@@ -70,7 +64,7 @@ pub fn cast_to_array(from_file: &PathBuf) -> Array2<u8> {
         arr[[row, index % 9]] = *value;
     }
 
-    return arr;
+    arr
 }
 
 #[cfg(test)]

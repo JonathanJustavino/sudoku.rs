@@ -21,8 +21,8 @@ mod tests {
         let should_work = grid._check_row(&input, valid_position);
         let should_fail = grid._check_row(&input, invalid_position);
 
-        assert_eq!(should_work, true);
-        assert_eq!(should_fail, false);
+        assert!(should_work);
+        assert!(!should_fail);
     }
 
     #[test]
@@ -46,8 +46,8 @@ mod tests {
         let should_fail = grid._check_col(&input, invalid_position);
         let should_work = grid._check_col(&input, valid_position);
 
-        assert_eq!(should_work, true);
-        assert_eq!(should_fail, false);
+        assert!(should_work);
+        assert!(!should_fail);
     }
 
     fn fill_subgrid(start: (usize, usize), grid: &mut Grid) {
@@ -80,8 +80,8 @@ mod tests {
         let (row_idx, col_idx) = grid._get_subgrid_start_index(valid_position);
         let should_work = find_in_subgrid(&grid, row_idx, col_idx, input);
 
-        assert_eq!(should_work, true);
-        assert_eq!(should_fail, false);
+        assert!(should_work);
+        assert!(!should_fail);
     }
 
     fn find_in_subgrid(grid: &Grid, row_idx: usize, col_idx: usize, input: u8) -> bool {
@@ -112,12 +112,12 @@ mod tests {
         grid.matrix[4][4] = 0;
 
         let valid_position: (&u8, &u8) = (&4, &4);
-        let valid_input_valid_position: bool = grid.check_value(&5, valid_position);
-        let invalid_input_valid_position: bool = grid.check_value(&25, valid_position);
+        let valid_input_valid_position: bool = grid._check_value(&5, valid_position);
+        let invalid_input_valid_position: bool = grid._check_value(&25, valid_position);
 
         let invalid_position: (&u8, &u8) = (&1, &1);
-        let valid_input_invalid_position: bool = grid.check_value(&5, invalid_position);
-        let invalid_input_invalid_position: bool = grid.check_value(&20, invalid_position);
+        let valid_input_invalid_position: bool = grid._check_value(&5, invalid_position);
+        let invalid_input_invalid_position: bool = grid._check_value(&20, invalid_position);
 
         assert!(valid_input_valid_position);
         assert!(!valid_input_invalid_position);
