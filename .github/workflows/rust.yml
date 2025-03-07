@@ -2,9 +2,9 @@ name: Rust
 
 on:
   push:
-    branches: [ "sa-grids" ]
+    branches: [ "sa-grids", "main" ]
   pull_request:
-    branches: [ "sa-grids" ]
+    branches: [ "sa-grids", "main" ]
 
 env:
   CARGO_TERM_COLOR: always
