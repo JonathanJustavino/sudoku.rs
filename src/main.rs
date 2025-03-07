@@ -3,44 +3,69 @@ mod game_grid;
 mod grid;
 mod utils;
 
-// use annealing::{log, log_headline};
-use dotenv::dotenv;
-// use crate::game_grid::Grid;
-use crate::grid::Grid;
+use std::path::PathBuf;
 
+use clap::Parser;
+use dotenv::dotenv;
+
+use crate::grid::Grid;
 //TODO: https://docs.rs/heapless/latest/heapless/struct.Vec.html use heapless vectors
+
+#[derive(Parser, Debug)]
+#[command(version, about="A sudoku solver using simmulated annealing", long_about = None)]
+struct Cli {
+    /// Name of the grid to solve (located under /static)
+    #[arg(short, long, default_value = "easy.txt")]
+    grid_name: String,
+
+    /// value of cooling ratio (typically in the range [0.99,..,0.85])
+    #[arg(short, long, default_value_t = 0.99)]
+    cooling_ration: f32,
+
+    /// List available grids
+    #[arg(short, long)]
+    list: bool,
+}
 
 fn main() {
     dotenv().ok();
 
-    // -------------------------
-    // | 0 8 0 | 5 0 0 | 0 0 0 |
-    // | 1 4 2 | 0 0 0 | 0 0 0 |
-    // | 6 0 3 | 0 8 0 | 0 1 0 |
-    // -------------------------
-    // | 0 0 4 | 0 2 0 | 0 0 8 |
-    // | 8 0 0 | 7 0 9 | 0 0 6 |
-    // | 3 0 0 | 0 6 0 | 0 0 0 |
-    // -------------------------
-    // | 0 1 0 | 0 5 0 | 8 0 4 |
-    // | 0 0 0 | 0 0 0 | 1 5 2 |
-    // | 0 0 0 | 0 0 2 | 0 6 0 |
-    // -------------------------
+    let args = Cli::parse();
 
-    // let mut grid = Grid::from_file("empty_example.txt");
-    let mut grid = Grid::from_file("easy.txt");
+    let grid_names = utils::list_dir().unwrap_or_default();
+    if grid_names.is_empty() {
+        panic!("Available grids are empty");
+    }
+
+    if args.list {
+        println!("Available grids");
+        for name in grid_names.iter() {
+            let file_name = name.file_name().unwrap().to_str().unwrap();
+            let (print_name, _) = file_name.split_at(file_name.len() - 4);
+            println!("{}", print_name);
+        }
+        return;
+    }
+
+    let cooling_ratio = args.cooling_ration;
+    let mut grid_name = PathBuf::from(args.grid_name);
+
+    if cooling_ratio.is_nan() {
+        panic!("Cooling ratio is not a number!");
+    }
+
+    grid_name.set_extension("txt");
+    let found = grid_names
+        .into_iter()
+        .find(|name| *name.file_name().unwrap() == grid_name);
+
+    println!("selected gridname {:?}", grid_name);
+
+    if found.is_none() {
+        panic!("Selected grid name is not available");
+    }
+
+    let mut grid = Grid::from_file(&grid_name.to_string_lossy());
     println!("{}", grid);
-    let cooling_ratio = 0.99;
     annealing::anneal(&mut grid, cooling_ratio);
-
-    // grid.initialize();
-
-    // println!("{}", grid);
-    // let conflicts = annealing::check_completeness(&grid.matrix);
-    // println!("{}", conflicts);
-
-    // let temp = annealing::calculate_temperature(&grid);
-    // println!("{}", temp);
-
-    // let res = annealing::estimate_attempts(&grid.fixed_subgrid_positions);
 }

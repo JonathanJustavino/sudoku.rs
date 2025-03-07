@@ -1,7 +1,7 @@
 use ndarray::Array2;
 // use std::collections::HashSet;
 // use std::hash::Hash;
-use std::{fs, path::PathBuf};
+use std::{fs, io, path::PathBuf};
 
 // pub fn has_unique_elements<T>(iter: T) -> bool
 // where
@@ -65,6 +65,16 @@ pub fn cast_to_array(from_file: &PathBuf) -> Array2<u8> {
     }
 
     arr
+}
+
+pub fn list_dir() -> io::Result<Vec<PathBuf>> {
+    let sudoku_dir = std::env::var("TEMPLATE_DIR").expect("Could not load TEMPLATE_DIR!");
+    let mut grids = fs::read_dir(sudoku_dir)?
+        .map(|files| files.map(|file| file.path()))
+        .collect::<Result<Vec<_>, io::Error>>()?;
+
+    grids.sort();
+    Ok(grids)
 }
 
 #[cfg(test)]
